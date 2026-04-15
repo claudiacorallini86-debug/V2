@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Gelateria Amélie",
+    "slug": "gelateria-amelie",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "amelie",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "it.gelateria.amelie"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "it.gelateria.amelie"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "Gelateria Amélie",
+      "shortName": "Amélie",
+      "lang": "it",
+      "themeColor": "#4A90D9",
+      "backgroundColor": "#1a1a2e"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
