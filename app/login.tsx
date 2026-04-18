@@ -9,10 +9,12 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useAuth } from '../context/AuthContext'
-import { loginUser } from '../lib/auth'
+import { blink } from '../lib/blink'
+import { BlinkAuthError } from '@blinkdotnew/sdk'
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -23,26 +25,31 @@ export default function LoginScreen() {
   const [error, setError] = useState('')
 
   const handleLogin = async () => {
-    console.log('LOGIN_SCREEN: Starting login process (v3)');
     if (!email.trim() || !password.trim()) {
       setError('Inserisci email e password.')
       return
     }
+    
     setLoading(true)
     setError('')
+    
     try {
-      const result = await loginUser(email.trim().toLowerCase(), password)
-      if (result.success && result.user) {
-        await signIn(result.user)
+      const response = await blink.auth.signInWithEmail(
+        email.trim().toLowerCase(), 
+        password
+      )
+      
+      if (response.user) {
+        // AuthContext will automatically pick up the user via onAuthStateChanged
         router.replace('/(tabs)')
-      } else {
-        const errorMsg = result.error ?? 'Accesso non riuscito.'
-        setError(errorMsg)
-        console.error('Login failed:', errorMsg)
       }
     } catch (err: any) {
-      console.error('Login handle error:', err)
-      setError('Errore improvviso: ' + (err.message || 'Controlla la console.'))
+      console.error('Login error:', err)
+      if (err instanceof BlinkAuthError) {
+        setError(err.message)
+      } else {
+        setError('Errore durante l\'accesso. Controlla le credenziali.')
+      }
     } finally {
       setLoading(false)
     }

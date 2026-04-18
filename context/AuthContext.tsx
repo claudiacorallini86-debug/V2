@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import { blink } from '../lib/blink'
 import { AmelieUser } from '../lib/auth'
-
-const AUTH_KEY = 'amelie_user'
 
 interface AuthContextValue {
   user: AmelieUser | null
@@ -23,24 +21,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    AsyncStorage.getItem(AUTH_KEY)
-      .then((json) => {
-        if (json) {
-          setUser(JSON.parse(json))
-        }
-      })
-      .catch(() => {})
-      .finally(() => setIsLoading(false))
+    const unsubscribe = blink.auth.onAuthStateChanged((state) => {
+      if (state.user) {
+        setUser({
+          id: state.user.id,
+          email: state.user.email,
+          displayName: state.user.displayName || null,
+          role: (state.user.role as 'admin' | 'staff') || 'staff',
+          active: 1, // Assume active if authenticated through Blink
+        })
+      } else {
+        setUser(null)
+      }
+      
+      if (!state.isLoading) {
+        setIsLoading(false)
+      }
+    })
+
+    return unsubscribe
   }, [])
 
   const signIn = async (u: AmelieUser) => {
+    // This is now handled by onAuthStateChanged after blink.auth.signInWithEmail
     setUser(u)
-    await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(u))
   }
 
   const signOut = async () => {
+    await blink.auth.signOut()
     setUser(null)
-    await AsyncStorage.removeItem(AUTH_KEY)
   }
 
   return (
