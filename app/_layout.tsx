@@ -37,7 +37,11 @@ export default function RootLayout() {
   useFrameworkReady();
 
   return (
-    <BlinkProvider config={config} defaultTheme="dark">
+    <BlinkProvider 
+      config={config} 
+      defaultTheme="dark"
+      projectId={process.env.EXPO_PUBLIC_BLINK_PROJECT_ID || 'gelateria-amelie-pwa-mm3q7wry'}
+    >
       <Theme name="dark">
         <BlinkToastProvider>
           <QueryClientProvider client={queryClient}>

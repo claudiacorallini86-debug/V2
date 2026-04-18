@@ -34,12 +34,12 @@ export default function LoginScreen() {
     setError('')
     
     try {
-      const response = await blink.auth.signInWithEmail(
+      const user = await blink.auth.signInWithEmail(
         email.trim().toLowerCase(), 
         password
       )
       
-      if (response.user) {
+      if (user) {
         // AuthContext will automatically pick up the user via onAuthStateChanged
         router.replace('/(tabs)')
       }
