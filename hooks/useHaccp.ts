@@ -137,32 +137,46 @@ export function useHaccp() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['haccp-temperature-logs'] })
   });
 
-  // Converte una stringa datetime (UTC o locale) nella data locale YYYY-MM-DD
+  // Restituisce la data locale come stringa YYYY-MM-DD leggendo i metodi locali del browser
+  // Funziona indipendentemente dal fuso orario perché usa getFullYear/getMonth/getDate (locale)
   const toLocalDate = (recordedAt: string): string => {
+    // Se la stringa non ha info di timezone (es. "2026-04-18T08:00:00") la trattiamo come locale
+    // Se ha Z o +offset la convertiamo nel fuso locale del browser
     const d = new Date(recordedAt);
     const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+    return `${y}-${mo}-${day}`;
   };
 
-  // Data locale YYYY-MM-DD per oggi e ieri
-  const todayLocal = (): string => toLocalDate(new Date().toISOString());
+  // Data locale YYYY-MM-DD per oggi
+  const todayLocal = (): string => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+
+  // Data locale YYYY-MM-DD per ieri
   const yesterdayLocal = (): string => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return toLocalDate(d.toISOString());
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
 
-  // Itera i giorni locali tra startDate (escluso) e endDate (incluso)
+  // Somma N giorni a una stringa YYYY-MM-DD (aritmetica pura, niente fuso)
+  const addDays = (dateStr: string, n: number): string => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d); // costruttore locale — nessun UTC
+    dt.setDate(dt.getDate() + n);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  };
+
+  // Itera i giorni tra startDate (escluso) e endDate (incluso), tutto locale
   const iterLocalDays = (startDateStr: string, endDateStr: string): string[] => {
     const days: string[] = [];
-    const cursor = new Date(startDateStr + 'T12:00:00'); // mezzogiorno locale evita DST edge
-    const end = new Date(endDateStr + 'T12:00:00');
-    cursor.setDate(cursor.getDate() + 1);
-    while (cursor <= end) {
-      days.push(toLocalDate(cursor.toISOString()));
-      cursor.setDate(cursor.getDate() + 1);
+    let cursor = addDays(startDateStr, 1);
+    while (cursor <= endDateStr) {
+      days.push(cursor);
+      cursor = addDays(cursor, 1);
     }
     return days;
   };
