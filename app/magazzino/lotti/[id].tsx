@@ -49,7 +49,7 @@ export default function LottoDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { lots, updateLot, deleteLot, isLoading, lotStockMap, ingredients } = useIngredients();
-  const { toast } = useBlinkToast();
+  const { show } = useBlinkToast();
 
   const [activeTab, setActiveTab] = useState<'info' | 'traceability'>('info');
 
@@ -60,7 +60,7 @@ export default function LottoDetailScreen() {
     lotCode: '',
     supplier: '',
     deliveryDate: '',
-    expiryDate: '',
+    expiryDate:  '',
     initialQuantity: '',
     conservation: '',
     status: 'active' as any,
@@ -73,7 +73,7 @@ export default function LottoDetailScreen() {
         lotCode: lot.lotCode,
         supplier: lot.supplier,
         deliveryDate: lot.deliveryDate,
-        expiryDate: lot.expiryDate || '',
+        expiryDate: lot.expiryDate?.toDateString() || '',
         initialQuantity: lot.initialQuantity.toString(),
         conservation: lot.conservation,
         status: lot.status,
@@ -91,14 +91,14 @@ export default function LottoDetailScreen() {
         lotCode: form.lotCode,
         supplier: form.supplier,
         deliveryDate: form.deliveryDate,
-        expiryDate: form.expiryDate || undefined,
+        expiryDate: form.expiryDate ? new Date(form.expiryDate) : undefined,
         initialQuantity: parseFloat(form.initialQuantity),
         conservation: form.conservation,
         status: form.status,
         note: form.note,
       });
 
-      toast('Aggiornato', { message: 'Lotto aggiornato correttamente.', variant: 'success' });
+      show('Aggiornato', { message: 'Lotto aggiornato correttamente.', variant: 'success' });
       router.back();
     } catch (error: any) {
       console.error('Update lot error:', error);
@@ -112,7 +112,7 @@ export default function LottoDetailScreen() {
     const confirmDelete = () => {
       deleteLot.mutate(lot.id, {
         onSuccess: () => {
-          toast('Eliminato', { message: 'Lotto rimosso correttamente.', variant: 'success' });
+          show('Eliminato', { message: 'Lotto rimosso correttamente.', variant: 'success' });
           router.back();
         },
         onError: (err: any) => {
@@ -291,7 +291,7 @@ export default function LottoDetailScreen() {
 
               <Button
                 size="$5"
-                variant="outline"
+                variant="outlined"
                 theme="destructive"
                 onPress={handleDelete}
                 disabled={deleteLot.isPending || updateLot.isPending}

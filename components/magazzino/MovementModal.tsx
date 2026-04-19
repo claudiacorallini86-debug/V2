@@ -6,11 +6,11 @@ import {
   Button,
   Input,
   Label,
-  BlinkSelect,
   useBlinkToast,
   Separator,
   Theme,
 } from '@blinkdotnew/mobile-ui';
+import { InlineSelect } from '@/components/common/InlineSelect';
 import { useIngredients } from '@/hooks/useIngredients';
 import { Modal, Platform, StyleSheet, TouchableOpacity, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,7 +29,7 @@ export function MovementModal({ isOpen, onClose, type, initialIngredientId }: Pr
   
   const showToast = (title: string, options: any) => {
     if (!toastContext) return;
-    const toastFn = typeof toastContext === 'function' ? toastContext : (toastContext.toast || toastContext.show);
+    const toastFn = typeof toastContext === 'function' ? toastContext : (toastContext.show || toastContext.show);
     if (typeof toastFn === 'function') {
       toastFn(title, options);
     }
@@ -147,7 +147,7 @@ export function MovementModal({ isOpen, onClose, type, initialIngredientId }: Pr
               <YStack gap="$4" paddingBottom="$8">
                 <YStack gap="$2">
                   <Label size="$3" fontWeight="600">Ingrediente</Label>
-                  <BlinkSelect 
+                  <InlineSelect 
                     items={[
                       { label: 'Seleziona ingrediente...', value: '' },
                       ...ingredients.map(i => ({ label: i.name, value: i.id }))
@@ -166,11 +166,10 @@ export function MovementModal({ isOpen, onClose, type, initialIngredientId }: Pr
                       </SizableText>
                     </YStack>
                   ) : (
-                    <BlinkSelect 
+                    <InlineSelect 
                       items={lotItems} 
                       value={form.lotId}
                       onValueChange={(val) => setForm({ ...form, lotId: val })}
-                      disabled={!form.ingredientId || availableLots.length === 0}
                     />
                   )}
                   {form.lotId && (

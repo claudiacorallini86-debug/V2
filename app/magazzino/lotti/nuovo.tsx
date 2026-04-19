@@ -8,11 +8,12 @@ import {
   ScrollView,
   Input,
   Label,
-  BlinkSelect,
   useBlinkToast,
   Separator,
   Theme,
+  Save,
 } from '@blinkdotnew/mobile-ui';
+import { InlineSelect } from '@/components/common/InlineSelect';
 import { AppHeader } from '@/components/AppHeader';
 import { useIngredients } from '@/hooks/useIngredients';
 import { useRouter } from 'expo-router';
@@ -33,7 +34,7 @@ export default function NuovoLottoScreen() {
   
   const showToast = (title: string, options: any) => {
     if (!toastContext) return;
-    const toastFn = typeof toastContext === 'function' ? toastContext : (toastContext.toast || toastContext.show);
+    const toastFn = typeof toastContext === 'function' ? toastContext : (toastContext.show || toastContext.show);
     if (typeof toastFn === 'function') {
       toastFn(title, options);
     }
@@ -141,7 +142,7 @@ export default function NuovoLottoScreen() {
         <YStack padding="$4" gap="$4">
           <YStack gap="$2">
             <FormLabel required>Ingrediente</FormLabel>
-            <BlinkSelect 
+            <InlineSelect 
               items={[
                 { label: 'Seleziona ingrediente...', value: '' },
                 ...ingredients.map(i => ({ label: i.name, value: i.id }))
@@ -160,7 +161,7 @@ export default function NuovoLottoScreen() {
                 onChangeText={(t) => setForm({ ...form, lotCode: t })}
                 placeholder="Lascia vuoto per auto-generazione"
               />
-              <Button size="$4" icon={<Ionicons name="refresh" size={18} />} onPress={generateLotCode} variant="outline" />
+              <Button size="$4" icon={<Ionicons name="refresh" size={18} />} onPress={generateLotCode} variant="outlined" />
             </XStack>
           </YStack>
 
@@ -208,10 +209,10 @@ export default function NuovoLottoScreen() {
             </YStack>
             <YStack flex={1} gap="$2">
               <FormLabel required>Conservazione</FormLabel>
-              <BlinkSelect 
+              <InlineSelect 
                 items={CONSERVATION_TYPES}
                 value={form.conservation}
-                onValueChange={(val) => setForm({ ...form, conservation: val })}
+                onValueChange={(val: string) => setForm({ ...form, conservation: val })}
               />
             </YStack>
           </XStack>

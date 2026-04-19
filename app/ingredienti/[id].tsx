@@ -7,14 +7,13 @@ import {
   Input,
   SafeArea,
   ScrollView,
-  BlinkSelect,
   useBlinkToast,
   Separator,
   Paragraph,
   Spinner,
   AlertCircle,
-  BlinkTabs,
 } from '@blinkdotnew/mobile-ui'
+import { InlineSelect } from '@/components/common/InlineSelect'
 import { AppHeader } from '@/components/AppHeader'
 import { useIngredients } from '@/hooks/useIngredients'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -40,7 +39,7 @@ export default function ModificaIngredienteScreen() {
   
   const showToast = (title: string, options: any) => {
     if (!toastContext) return
-    const toastFn = typeof toastContext === 'function' ? toastContext : (toastContext.toast || toastContext.show)
+    const toastFn = typeof toastContext === 'function' ? toastContext : (toastContext.show || toastContext.show)
     if (typeof toastFn === 'function') {
       toastFn(title, options)
     } else {
@@ -124,16 +123,10 @@ export default function ModificaIngredienteScreen() {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      Alert.alert('Errore', 'Il nome dell\'ingrediente è obbligatorio.')
-      return
-    }
-
-    // Verifica univocità nome (escluso se stesso)
-    const exists = ingredients.some(
-      (ing) => ing.name.toLowerCase() === form.name.trim().toLowerCase() && ing.id !== id
-    )
-    if (exists) {
-      Alert.alert('Errore', 'Esiste già un ingrediente con questo nome.')
+      showToast('Errore', {
+        message: 'Il nome dell\'ingrediente è obbligatorio.',
+        variant: 'error',
+      })
       return
     }
 
@@ -308,7 +301,7 @@ export default function ModificaIngredienteScreen() {
               <XStack gap="$3">
                 <YStack flex={1} gap="$2">
                   <FormLabel>Categoria</FormLabel>
-                  <BlinkSelect
+                  <InlineSelect
                     items={INGREDIENT_CATEGORIES}
                     value={form.category}
                     onValueChange={(val) => setForm({ ...form, category: val })}
@@ -316,7 +309,7 @@ export default function ModificaIngredienteScreen() {
                 </YStack>
                 <YStack flex={1} gap="$2">
                   <FormLabel>Unità di Misura</FormLabel>
-                  <BlinkSelect
+                  <InlineSelect
                     items={MEASUREMENT_UNITS}
                     value={form.measurementUnit}
                     onValueChange={(val) => setForm({ ...form, measurementUnit: val })}
@@ -327,7 +320,7 @@ export default function ModificaIngredienteScreen() {
               <XStack gap="$3">
                 <YStack flex={1} gap="$2">
                   <FormLabel>Conservazione</FormLabel>
-                  <BlinkSelect
+                  <InlineSelect
                     items={CONSERVATION_TYPES}
                     value={form.conservation}
                     onValueChange={(val) => setForm({ ...form, conservation: val })}
@@ -368,7 +361,7 @@ export default function ModificaIngredienteScreen() {
                         key={allergen}
                         size="$2"
                         theme={isSelected ? 'active' : 'alt'}
-                        variant={isSelected ? 'solid' : 'outline'}
+                        variant={'outlined'}
                         onPress={() => toggleAllergen(allergen)}
                         icon={isSelected ? <CheckCircle2 size={14} /> : null}
                       >
@@ -408,7 +401,7 @@ export default function ModificaIngredienteScreen() {
                 
                 <Button
                   size="$5"
-                  variant="outline"
+                  variant="outlined"
                   theme="destructive"
                   icon={<Trash2 size={20} />}
                   onPress={handleDelete}

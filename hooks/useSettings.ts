@@ -7,7 +7,7 @@ export function useSettings() {
   const { data: settings = {}, isLoading } = useQuery({
     queryKey: ['amelie-settings'],
     queryFn: async () => {
-      const list = await blink.db.amelieSettings.list() as any[];
+      const list = await (blink.db as any).amelieSettings.list() as any[];
       const map: Record<string, string> = {};
       list.forEach(item => {
         map[item.key] = item.value;
@@ -19,7 +19,7 @@ export function useSettings() {
   const updateSettings = useMutation({
     mutationFn: async (newSettings: Record<string, string>) => {
       const promises = Object.entries(newSettings).map(([key, value]) => 
-        blink.db.amelieSettings.upsert({ key, value })
+        (blink.db as any).amelieSettings.upsert({ key, value })
       );
       return Promise.all(promises);
     },

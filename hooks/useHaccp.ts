@@ -64,7 +64,7 @@ export function useHaccp() {
   const equipmentQuery = useQuery({
     queryKey: ['haccp-equipment'],
     queryFn: async () => {
-      const data = await blink.db.amelieHaccpEquipment.list() as any[];
+      const data = await (blink.db as any).amelieHaccpEquipment.list() as any[];
       return data.map(e => ({
         id: e.id,
         name: e.name,
@@ -77,7 +77,7 @@ export function useHaccp() {
 
   const createEquipment = useMutation({
     mutationFn: async (data: Omit<HaccpEquipment, 'id' | 'created_at'>) => {
-      return await blink.db.amelieHaccpEquipment.create({
+      return await (blink.db as any).amelieHaccpEquipment.create({
         id: `eq_${Date.now()}`,
         name: data.name,
         min_temp: data.minTemp,
@@ -89,7 +89,7 @@ export function useHaccp() {
 
   const deleteEquipment = useMutation({
     mutationFn: async (id: string) => {
-      return await blink.db.amelieHaccpEquipment.delete(id);
+      return await (blink.db as any).amelieHaccpEquipment.delete(id);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['haccp-equipment'] })
   });
@@ -98,7 +98,7 @@ export function useHaccp() {
   const temperatureLogsQuery = useQuery({
     queryKey: ['haccp-temperature-logs'],
     queryFn: async () => {
-      const data = await blink.db.amelieHaccpTemperatureLog.list({
+      const data = await (blink.db as any).amelieHaccpTemperatureLog.list({
         orderBy: { recorded_at: 'desc' }
       }) as any[];
       return data.map(l => ({
@@ -116,7 +116,7 @@ export function useHaccp() {
   const addTemperatureLog = useMutation({
     mutationFn: async (data: Omit<TemperatureLog, 'id' | 'created_at' | 'recordedAt'>) => {
       const recordedAt = new Date().toISOString();
-      return await blink.db.amelieHaccpTemperatureLog.create({
+      return await (blink.db as any).amelieHaccpTemperatureLog.create({
         id: `tlog_${Date.now()}`,
         equipment_name: data.equipmentName,
         temperature: data.temperature,
@@ -132,7 +132,7 @@ export function useHaccp() {
   const cleaningTasksQuery = useQuery({
     queryKey: ['haccp-cleaning-tasks'],
     queryFn: async () => {
-      const data = await blink.db.amelieHaccpCleaningTask.list() as any[];
+      const data = await (blink.db as any).amelieHaccpCleaningTask.list() as any[];
       return data.map(t => ({
         id: t.id,
         taskName: t.taskName || t.task_name,
@@ -143,7 +143,7 @@ export function useHaccp() {
 
   const createCleaningTask = useMutation({
     mutationFn: async (data: Omit<CleaningTask, 'id'>) => {
-      return await blink.db.amelieHaccpCleaningTask.create({
+      return await (blink.db as any).amelieHaccpCleaningTask.create({
         id: `ct_${Date.now()}`,
         task_name: data.taskName,
         frequency: data.frequency
@@ -154,7 +154,7 @@ export function useHaccp() {
 
   const deleteCleaningTask = useMutation({
     mutationFn: async (id: string) => {
-      return await blink.db.amelieHaccpCleaningTask.delete(id);
+      return await (blink.db as any).amelieHaccpCleaningTask.delete(id);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['haccp-cleaning-tasks'] })
   });
@@ -163,7 +163,7 @@ export function useHaccp() {
   const checklistsQuery = useQuery({
     queryKey: ['haccp-checklists'],
     queryFn: async () => {
-      const data = await blink.db.amelieHaccpChecklist.list({
+      const data = await (blink.db as any).amelieHaccpChecklist.list({
         orderBy: { date: 'desc' }
       }) as any[];
       return data.map(c => ({
@@ -176,7 +176,7 @@ export function useHaccp() {
   const upsertChecklist = useMutation({
     mutationFn: async (data: Omit<HaccpChecklist, 'id' | 'created_at'> & { id?: string }) => {
       const id = data.id || `chk_${Date.now()}`;
-      return await blink.db.amelieHaccpChecklist.upsert({
+      return await (blink.db as any).amelieHaccpChecklist.upsert({
         id,
         date: data.date,
         frequency: data.frequency,
@@ -191,7 +191,7 @@ export function useHaccp() {
   const cleaningLogsQuery = useQuery({
     queryKey: ['haccp-cleaning-logs'],
     queryFn: async () => {
-      const data = await blink.db.amelieHaccpCleaningLog.list({
+      const data = await (blink.db as any).amelieHaccpCleaningLog.list({
         orderBy: { recorded_at: 'desc' }
       }) as any[];
       return data.map(l => ({
@@ -216,7 +216,7 @@ export function useHaccp() {
         note: l.note,
         recorded_at: recordedAt
       }));
-      return await blink.db.amelieHaccpCleaningLog.createMany(newLogs as any[]);
+      return await (blink.db as any).amelieHaccpCleaningLog.createMany(newLogs as any[]);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['haccp-cleaning-logs'] })
   });
@@ -225,7 +225,7 @@ export function useHaccp() {
   const nonConformitiesQuery = useQuery({
     queryKey: ['haccp-non-conformities'],
     queryFn: async () => {
-      const data = await blink.db.amelieHaccpNonConformity.list({
+      const data = await (blink.db as any).amelieHaccpNonConformity.list({
         orderBy: { detected_at: 'desc' }
       }) as any[];
       return data.map(nc => ({
@@ -245,7 +245,7 @@ export function useHaccp() {
 
   const addNonConformity = useMutation({
     mutationFn: async (data: Omit<NonConformity, 'id' | 'status' | 'closedAt'>) => {
-      return await blink.db.amelieHaccpNonConformity.create({
+      return await (blink.db as any).amelieHaccpNonConformity.create({
         id: `nc_${Date.now()}`,
         description: data.description,
         category: data.category,
@@ -266,7 +266,7 @@ export function useHaccp() {
       if (data.closedAt) updateData.closed_at = data.closedAt;
       if (data.targetDate) updateData.target_date = data.targetDate;
       
-      return await blink.db.amelieHaccpNonConformity.update(data.id, updateData);
+      return await (blink.db as any).amelieHaccpNonConformity.update(data.id, updateData);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['haccp-non-conformities'] })
   });

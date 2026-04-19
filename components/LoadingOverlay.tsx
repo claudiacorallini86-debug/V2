@@ -1,6 +1,6 @@
 import React from 'react'
-import { YStack, Spinner, SizableText, Theme, Image } from '@blinkdotnew/mobile-ui'
-import { StyleSheet, Modal, View } from 'react-native'
+import { YStack, Spinner, SizableText, Theme } from '@blinkdotnew/mobile-ui'
+import { StyleSheet, Modal, View, Image as RNImage } from 'react-native'
 
 interface Props {
   visible: boolean
@@ -26,9 +26,10 @@ export function LoadingOverlay({ visible, message = 'Caricamento in corso...' }:
             width={280}
           >
             <View style={styles.logoContainer}>
-              <Image 
+              <RNImage
                 source={require('../assets/images/icon.png')} 
                 style={styles.logo}
+                resizeMode="contain"
               />
             </View>
             <Spinner size="large" color="#4A90D9" />
@@ -49,13 +50,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
+    width: 96,
+    height: 96,
+    borderRadius: 24,
     overflow: 'hidden',
     marginBottom: 10,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f8fafc',
     elevation: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   logo: {
     width: '100%',

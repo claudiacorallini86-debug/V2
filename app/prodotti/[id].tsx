@@ -7,11 +7,11 @@ import {
   Input,
   SafeArea,
   ScrollView,
-  BlinkSelect,
   useBlinkToast,
   Separator,
   Label,
 } from '@blinkdotnew/mobile-ui';
+import { InlineSelect } from '@/components/common/InlineSelect';
 import { AppHeader } from '@/components/AppHeader';
 import { useProducts } from '@/hooks/useProducts';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -26,7 +26,16 @@ export default function ProdottoDetailScreen() {
   const isNew = !id || id === 'nuovo';
   
   const { products, createProduct, updateProduct, deleteProduct, isLoading: isProductsLoading } = useProducts();
-  const { toast } = useBlinkToast();
+  const toastContext = useBlinkToast();
+
+  const showToast = (title: string, options: any) => {
+    if (!toastContext) return;
+    const ctx: any = toastContext;
+    const toastFn = typeof ctx === 'function' ? ctx : (ctx?.toast || ctx?.show);
+    if (typeof toastFn === 'function') {
+      toastFn(title, options);
+    }
+  };
   
   const product = products.find(p => p.id === id);
 
@@ -82,10 +91,10 @@ export default function ProdottoDetailScreen() {
     try {
       if (isNew) {
         await createProduct.mutateAsync(data);
-        toast('Creato', { message: 'Prodotto creato con successo.', variant: 'success' });
+        showToast('Creato', { message: 'Prodotto creato con successo.', variant: 'success' });
       } else {
         await updateProduct.mutateAsync({ id: id as string, ...data });
-        toast('Aggiornato', { message: 'Prodotto aggiornato con successo.', variant: 'success' });
+        showToast('Aggiornato', { message: 'Prodotto aggiornato con successo.', variant: 'success' });
       }
       router.back();
     } catch (error: any) {
@@ -99,7 +108,7 @@ export default function ProdottoDetailScreen() {
     const confirmDelete = () => {
       deleteProduct.mutate(product.id, {
         onSuccess: () => {
-          toast('Eliminato', { message: 'Prodotto rimosso correttamente.', variant: 'success' });
+          showToast('Eliminato', { message: 'Prodotto rimosso correttamente.', variant: 'success' });
           router.back();
         },
         onError: (err: any) => {
@@ -160,7 +169,7 @@ export default function ProdottoDetailScreen() {
           <XStack gap="$3">
             <YStack flex={1} gap="$2">
               <FormLabel>Tipo Prodotto</FormLabel>
-              <BlinkSelect 
+              <InlineSelect 
                 items={PRODUCT_TYPES} 
                 value={form.type} 
                 onValueChange={(v) => setForm({ ...form, type: v })} 
@@ -168,7 +177,7 @@ export default function ProdottoDetailScreen() {
             </YStack>
             <YStack flex={1} gap="$2">
               <FormLabel>Unità Vendita</FormLabel>
-              <BlinkSelect 
+              <InlineSelect 
                 items={SALE_UNITS} 
                 value={form.saleUnit} 
                 onValueChange={(v) => setForm({ ...form, saleUnit: v })} 
@@ -178,13 +187,16 @@ export default function ProdottoDetailScreen() {
 
           <YStack gap="$2">
             <FormLabel>Prezzo Vendita (€)</FormLabel>
-            <Input 
-              keyboardType="numeric" 
-              value={form.salePrice} 
-              onChangeText={(t) => setForm({ ...form, salePrice: t })} 
-              placeholder="es. 22.00" 
-              leftIcon={<Euro size={18} color="$color9" />}
-            />
+            <XStack gap="$2" alignItems="center">
+              <Euro size={18} color="$color9" />
+              <Input
+                flex={1}
+                keyboardType="numeric"
+                value={form.salePrice}
+                onChangeText={(t) => setForm({ ...form, salePrice: t })}
+                placeholder="es. 22.00"
+              />
+            </XStack>
           </YStack>
 
           <YStack gap="$2">
@@ -196,7 +208,7 @@ export default function ProdottoDetailScreen() {
               onChangeText={(t) => setForm({ ...form, note: t })} 
               placeholder="Note aggiuntive..." 
               height={100}
-              textAlignVertical="top"
+              verticalAlign="top"
             />
           </YStack>
 
@@ -209,7 +221,7 @@ export default function ProdottoDetailScreen() {
               <SizableText size="$2" color="$green11">
                 Questo prodotto è collegato a una ricetta attiva. Gli allergeni vengono estratti automaticamente.
               </SizableText>
-              <Button size="$2" variant="outline" theme="active" onPress={() => router.push(`/ricette/${product.latestRecipeId}`)}>
+              <Button size="$2" variant="outlined" theme="active" onPress={() => router.push(`/ricette/${product.latestRecipeId}`)}>
                 Vai alla Ricetta
               </Button>
             </YStack>
@@ -218,7 +230,7 @@ export default function ProdottoDetailScreen() {
           {!isNew && (
             <Button
               size="$5"
-              variant="outline"
+              variant="outlined"
               theme="destructive"
               marginTop="$4"
               onPress={handleDelete}

@@ -1,5 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-import { blink } from '@/lib/blink';
 import { useIngredients } from './useIngredients';
 import { useProduction } from './useProduction';
 import { useHaccp } from './useHaccp';

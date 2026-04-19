@@ -15,7 +15,7 @@ import {
 } from '@blinkdotnew/mobile-ui';
 import { useProducts, Product } from '@/hooks/useProducts';
 import { useAuth } from '@/context/AuthContext';
-import { Plus, Search, Filter, Trash2, Package, ChefHat, Info, ChevronRight, Euro } from '@blinkdotnew/mobile-ui';
+import { Plus, Search, Filter, Trash2, Package, ChefHat, Info, ChevronRight, Euro, AlertTriangle } from '@blinkdotnew/mobile-ui';
 import { Alert, Platform, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
@@ -26,7 +26,7 @@ export default function ProdottiScreen() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { products, deleteProduct, isLoading } = useProducts();
-  const { toast } = useBlinkToast();
+  const { show } = useBlinkToast();
 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -46,7 +46,7 @@ export default function ProdottiScreen() {
     const confirmDelete = () => {
       deleteProduct.mutate(id, {
         onSuccess: () => {
-          toast('Eliminato', { 
+          show('Eliminato', { 
             message: `${name} rimosso correttamente.`, 
             variant: 'success' 
           });
@@ -87,7 +87,7 @@ export default function ProdottiScreen() {
           <YStack gap="$1" flex={1}>
             <XStack gap="$2" alignItems="center">
               <SizableText size="$5" fontWeight="800" color="$color12">{p.name}</SizableText>
-              <Badge size="$1" theme="alt" borderRadius="$full">{typeLabel}</Badge>
+              <Badge variant="default">{typeLabel}</Badge>
             </XStack>
             
             <XStack gap="$4" marginTop="$2">
@@ -111,7 +111,7 @@ export default function ProdottiScreen() {
                 <SizableText size="$1" color="$orange9" fontWeight="800">ALLERGENI</SizableText>
                 <XStack flexWrap="wrap" gap="$1">
                   {p.allergens.map((a, i) => (
-                    <Badge key={i} size="$1" variant="outline" borderColor="$orange5" backgroundColor="$orange2">
+                    <Badge key={i} variant="default">
                       <SizableText size="$1" color="$orange10" fontWeight="700">{a}</SizableText>
                     </Badge>
                   ))}
@@ -121,9 +121,9 @@ export default function ProdottiScreen() {
 
             <XStack gap="$2" alignItems="center" marginTop="$2">
               {p.latestRecipeId ? (
-                <Badge theme="success" size="$1" icon={<ChefHat size={12} />}>RICETTA COLLEGATA</Badge>
+                <Badge variant="success"><XStack gap="$1" alignItems="center"><ChefHat size={12} /><SizableText size="$1">RICETTA COLLEGATA</SizableText></XStack></Badge>
               ) : (
-                <Badge theme="warning" size="$1" icon={<Info size={12} />}>NESSUNA RICETTA</Badge>
+                <Badge variant="warning"><XStack gap="$1" alignItems="center"><AlertTriangle size={12} /><SizableText size="$1">NESSUNA RICETTA</SizableText></XStack></Badge>
               )}
             </XStack>
           </YStack>

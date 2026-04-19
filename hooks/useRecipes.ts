@@ -49,17 +49,17 @@ export function useRecipes() {
   const recipesQuery = useQuery({
     queryKey: ['recipes'],
     queryFn: async () => {
-      const recipes = await blink.db.amelieRecipe.list({
+      const recipes = await (blink.db as any).amelieRecipe.list({
         orderBy: { created_at: 'desc' }
       }) as any[];
       
-      const rIngredients = await blink.db.amelieRecipeIngredient.list() as any[];
-      const ingredients = await blink.db.amelieIngredient.list() as any[];
-      const prices = await blink.db.amelieIngredientPrice.list({
+      const rIngredients = await (blink.db as any).amelieRecipeIngredient.list() as any[];
+      const ingredients = await (blink.db as any).amelieIngredient.list() as any[];
+      const prices = await (blink.db as any).amelieIngredientPrice.list({
         orderBy: { date: 'desc' },
         limit: 500
       }) as any[];
-      const batches = await blink.db.amelieProductionBatch.list({
+      const batches = await (blink.db as any).amelieProductionBatch.list({
         orderBy: { produced_at: 'desc' }
       }) as any[];
 
@@ -168,7 +168,7 @@ export function useRecipes() {
       const recipeId = `rec_${Date.now()}`;
       
       // Create recipe
-      await blink.db.amelieRecipe.create({
+      await (blink.db as any).amelieRecipe.create({
         id: recipeId,
         name: data.recipe.name,
         product_id: data.recipe.productId,
@@ -183,7 +183,7 @@ export function useRecipes() {
 
       // Create ingredients
       if (data.ingredients.length > 0) {
-        await blink.db.amelieRecipeIngredient.createMany(
+        await (blink.db as any).amelieRecipeIngredient.createMany(
           data.ingredients.map((ri, index) => ({
             id: `ri_${recipeId}_${index}`,
             recipe_id: recipeId,
@@ -207,7 +207,7 @@ export function useRecipes() {
   const deleteRecipe = useMutation({
     mutationFn: async (id: string) => {
       // Check if recipe has production batches
-      const batches = await blink.db.amelieProductionBatch.list({
+      const batches = await (blink.db as any).amelieProductionBatch.list({
         where: { recipe_id: id }
       }) as any[];
 
@@ -216,15 +216,15 @@ export function useRecipes() {
       }
 
       // Delete recipe ingredients first
-      const rIngredients = await blink.db.amelieRecipeIngredient.list({
+      const rIngredients = await (blink.db as any).amelieRecipeIngredient.list({
         where: { recipe_id: id }
       }) as any[];
       
       for (const ri of rIngredients) {
-        await blink.db.amelieRecipeIngredient.delete(ri.id);
+        await (blink.db as any).amelieRecipeIngredient.delete(ri.id);
       }
 
-      return await blink.db.amelieRecipe.delete(id);
+      return await (blink.db as any).amelieRecipe.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] });

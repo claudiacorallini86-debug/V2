@@ -9,12 +9,10 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useAuth } from '../context/AuthContext'
-import { blink } from '../lib/blink'
-import { BlinkAuthError } from '@blinkdotnew/sdk'
+import { loginUser } from '../lib/auth'
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -25,31 +23,26 @@ export default function LoginScreen() {
   const [error, setError] = useState('')
 
   const handleLogin = async () => {
+    console.log('LOGIN_SCREEN: Starting login process (v3)');
     if (!email.trim() || !password.trim()) {
       setError('Inserisci email e password.')
       return
     }
-    
     setLoading(true)
     setError('')
-    
     try {
-      const user = await blink.auth.signInWithEmail(
-        email.trim().toLowerCase(), 
-        password
-      )
-      
-      if (user) {
-        // AuthContext will automatically pick up the user via onAuthStateChanged
+      const result = await loginUser(email.trim().toLowerCase(), password)
+      if (result.success && result.user) {
+        await signIn(result.user)
         router.replace('/(tabs)')
+      } else {
+        const errorMsg = result.error ?? 'Accesso non riuscito.'
+        setError(errorMsg)
+        console.error('Login failed:', errorMsg)
       }
     } catch (err: any) {
-      console.error('Login error:', err)
-      if (err instanceof BlinkAuthError) {
-        setError(err.message)
-      } else {
-        setError('Errore durante l\'accesso. Controlla le credenziali.')
-      }
+      console.error('Login handle error:', err)
+      setError('Errore improvviso: ' + (err.message || 'Controlla la console.'))
     } finally {
       setLoading(false)
     }
@@ -157,11 +150,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
-    shadowColor: ACCENT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: `0px 4px 16px ${ACCENT}66` } as any)
+      : {
+          shadowColor: ACCENT,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 16,
+          elevation: 8,
+        }),
   },
   logoEmoji: {
     fontSize: 42,
@@ -183,11 +180,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#16213e',
     borderRadius: 20,
     padding: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
-    elevation: 12,
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.3)' } as any)
+      : {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.3,
+          shadowRadius: 24,
+          elevation: 12,
+        }),
   },
   cardTitle: {
     color: '#ffffff',
@@ -234,11 +235,15 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: 'center',
     marginTop: 4,
-    shadowColor: ACCENT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: `0px 4px 8px ${ACCENT}4d` } as any)
+      : {
+          shadowColor: ACCENT,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 4,
+        }),
   },
   btnDisabled: {
     opacity: 0.6,

@@ -224,7 +224,7 @@ export function PriceHistoryTab({ ingredientId, defaultSupplier }: Props) {
                           {price.date}
                         </SizableText>
                         {isLatest && (
-                          <Badge theme="success" size="$1">CORRENTE</Badge>
+                          <Badge>CORRENTE</Badge>
                         )}
                       </XStack>
                       <SizableText size="$4" fontWeight="800" color={isLatest ? '$green10' : '$color12'}>
@@ -235,9 +235,9 @@ export function PriceHistoryTab({ ingredientId, defaultSupplier }: Props) {
                       </SizableText>
                       <XStack gap="$2" alignItems="center">
                         <SizableText size="$2" color="$color11" fontWeight="600">{price.supplier}</SizableText>
-                        {price.docReferral && (
+                        {price.docReferral ? (
                           <SizableText size="$1" color="$color9">({price.docReferral})</SizableText>
-                        )}
+                        ) : null}
                       </XStack>
                     </YStack>
                     
@@ -246,8 +246,8 @@ export function PriceHistoryTab({ ingredientId, defaultSupplier }: Props) {
                         <Button 
                           circular 
                           size="$3" 
-                          variant="outline" 
-                          icon={<ImageIcon size={16} />} 
+                          variant="outlined" 
+                          icon={<ExternalLink />} 
                           onPress={() => Linking.openURL(price.invoiceUrl!)}
                         />
                       ) : null}

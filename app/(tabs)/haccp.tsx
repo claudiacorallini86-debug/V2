@@ -38,7 +38,6 @@ export default function HaccpScreen() {
         nonConformities,
         settings
       });
-      Alert.alert('Successo', `Il PDF per ${label} è stato generato.`);
     } catch (error: any) {
       Alert.alert('Errore', error.message || 'Impossibile generare il PDF.');
     }

@@ -23,7 +23,7 @@ import { LoadingOverlay } from '../../components/LoadingOverlay';
 export default function DatiGelateriaScreen() {
   const router = useRouter();
   const { settings, isLoading, updateSettings } = useSettings();
-  const { toast } = useBlinkToast();
+  const { show } = useBlinkToast();
 
   const [form, setForm] = useState({
     store_name: '',
@@ -53,7 +53,7 @@ export default function DatiGelateriaScreen() {
 
     try {
       await updateSettings.mutateAsync(form);
-      toast('Successo', { message: 'Dati gelateria aggiornati correttamente.', variant: 'success' });
+      show('Dati gelateria aggiornati correttamente.', { variant: 'success' });
       router.back();
     } catch (error: any) {
       Alert.alert('Errore', error.message || 'Si è verificato un errore durante il salvataggio.');

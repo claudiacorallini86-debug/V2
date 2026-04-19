@@ -5,9 +5,7 @@ import {
   SizableText, 
   Button, 
   Input, 
-  BlinkSelect, 
   useBlinkToast,
-  Label,
   Separator,
   Theme,
   Dialog,
@@ -15,6 +13,7 @@ import {
   Sheet,
   ScrollView,
 } from '@blinkdotnew/mobile-ui'
+import { InlineSelect } from '@/components/common/InlineSelect'
 import { Save, X, Calendar as CalendarIcon, Upload, Package, FileText } from '@blinkdotnew/mobile-ui'
 import { Modal, Platform, StyleSheet, TouchableOpacity } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
@@ -50,9 +49,10 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
     }
     
     // Support multiple toast shapes: function, { toast: fn }, { show: fn }
-    const toastFn = typeof toastContext === 'function' 
-      ? toastContext 
-      : (toastContext.toast || toastContext.show)
+    const ctx: any = toastContext
+    const toastFn = typeof ctx === 'function'
+      ? ctx
+      : (ctx?.toast || ctx?.show)
 
     if (typeof toastFn === 'function') {
       toastFn(title, options)
@@ -105,8 +105,10 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
       if (invoiceImage) {
         const fileExtension = invoiceImage.split('.').pop() || 'jpg'
         const fileName = `invoice_${Date.now()}.${fileExtension}`
-        const uploadResult = await blink.storage.upload(invoiceImage, fileName)
-        invoiceUrl = uploadResult.url
+        const fileResponse = await fetch(invoiceImage)
+        const fileBlob = await fileResponse.blob()
+        const uploadResult: any = await blink.storage.upload(fileBlob, fileName)
+        invoiceUrl = uploadResult.url || uploadResult.publicUrl || ''
       }
 
       const newPrice = {
@@ -186,7 +188,7 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
             <ScrollView showsVerticalScrollIndicator={false}>
               <YStack gap="$4" paddingBottom="$8">
                 <YStack gap="$2">
-                  <Label size="$3" fontWeight="600">Data Rilevazione</Label>
+                  <SizableText size="$3" fontWeight="600">Data Rilevazione</SizableText>
                   <Input 
                     value={form.date} 
                     onChangeText={(val) => setForm({ ...form, date: val })}
@@ -195,7 +197,7 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
                 </YStack>
 
                 <YStack gap="$2">
-                  <Label size="$3" fontWeight="600">Fornitore</Label>
+                  <SizableText size="$3" fontWeight="600">Fornitore</SizableText>
                   <Input 
                     value={form.supplier} 
                     onChangeText={(val) => setForm({ ...form, supplier: val })}
@@ -205,7 +207,7 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
 
                 <XStack gap="$3">
                   <YStack flex={2} gap="$2">
-                    <Label size="$3" fontWeight="600">Prezzo per Unità (€)</Label>
+                    <SizableText size="$3" fontWeight="600">Prezzo per Unità (€)</SizableText>
                     <Input 
                       keyboardType="numeric"
                       value={form.pricePerUnit} 
@@ -214,8 +216,8 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
                     />
                   </YStack>
                   <YStack flex={1} gap="$2">
-                    <Label size="$3" fontWeight="600">Unità</Label>
-                    <BlinkSelect 
+                    <SizableText size="$3" fontWeight="600">Unità</SizableText>
+                    <InlineSelect 
                       items={PRICE_UNITS}
                       value={form.priceUnit}
                       onValueChange={(val) => setForm({ ...form, priceUnit: val })}
@@ -235,7 +237,7 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
                 )}
 
                 <YStack gap="$2">
-                  <Label size="$3" fontWeight="600">Riferimento Documento</Label>
+                  <SizableText size="$3" fontWeight="600">Riferimento Documento</SizableText>
                   <Input 
                     value={form.docReferral} 
                     onChangeText={(val) => setForm({ ...form, docReferral: val })}
@@ -244,7 +246,7 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
                 </YStack>
 
                 <YStack gap="$2">
-                  <Label size="$3" fontWeight="600">Note</Label>
+                  <SizableText size="$3" fontWeight="600">Note</SizableText>
                   <Input 
                     multiline
                     numberOfLines={3}
@@ -257,11 +259,11 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
                 </YStack>
 
                 <YStack gap="$2">
-                  <Label size="$3" fontWeight="600">Immagine Fattura (opzionale)</Label>
+                  <SizableText size="$3" fontWeight="600">Immagine Fattura (opzionale)</SizableText>
                   <XStack gap="$3" alignItems="center">
                     <Button 
                       icon={<Upload size={18} />} 
-                      variant="outline"
+                      variant="outlined"
                       onPress={handlePickImage}
                     >
                       {invoiceImage ? 'Cambia Immagine' : 'Carica Foto'}

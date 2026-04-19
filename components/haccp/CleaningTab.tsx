@@ -21,7 +21,7 @@ import { LoadingOverlay } from '@/components/LoadingOverlay';
 
 export function CleaningTab() {
   const { cleaningTasks, checklists, upsertChecklist, addCleaningLogs, isLoading } = useHaccp();
-  const { toast } = useBlinkToast();
+  const { show } = useBlinkToast();
 
   const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily');
   const [checkedTasks, setCheckedTasks] = useState<Record<string, boolean>>({});
@@ -93,7 +93,7 @@ export function CleaningTab() {
         await addCleaningLogs.mutateAsync(logsToCreate);
       }
 
-      toast('Checklist salvata', { variant: 'success' });
+      show('Checklist salvata', { variant: 'success' });
     } catch (error: any) {
       Alert.alert('Errore', error.message || 'Errore durante il salvataggio.');
     }
@@ -137,7 +137,7 @@ export function CleaningTab() {
               </SizableText>
             </XStack>
             {currentChecklist && (
-              <Badge theme={currentChecklist.status === 'complete' ? 'success' : 'warning'}>
+              <Badge variant={currentChecklist.status === 'complete' ? 'success' : 'warning'}>
                 {currentChecklist.status.toUpperCase()}
               </Badge>
             )}
@@ -194,7 +194,7 @@ export function CleaningTab() {
         </Card>
 
         <Button 
-          variant="outline" 
+          variant="outlined" 
           icon={<Ionicons name="time-outline" size={18} color="#94a3b8" />}
           onPress={() => setShowHistory(!showHistory)}
         >
@@ -210,11 +210,11 @@ export function CleaningTab() {
                     <XStack gap="$2" alignItems="center">
                       <Ionicons name="calendar-outline" size={14} color="#94a3b8" />
                       <SizableText fontWeight="700">{formatDate(checklist.date)}</SizableText>
-                      <Badge size="$1" theme="alt">{checklist.frequency.toUpperCase()}</Badge>
+                      <Badge variant="info">{checklist.frequency.toUpperCase()}</Badge>
                     </XStack>
                     <SizableText size="$2" color="$color11">Firmato da: {checklist.operatorName}</SizableText>
                   </YStack>
-                  <Badge theme={checklist.status === 'complete' ? 'success' : 'warning'}>
+                  <Badge variant={checklist.status === 'complete' ? 'success' : 'warning'}>
                     {checklist.status.toUpperCase()}
                   </Badge>
                 </XStack>

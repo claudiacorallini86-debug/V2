@@ -7,11 +7,11 @@ import {
   Input,
   SafeArea,
   ScrollView,
-  BlinkSelect,
   useBlinkToast,
   Separator,
   Paragraph,
 } from '@blinkdotnew/mobile-ui'
+import { InlineSelect } from '@/components/common/InlineSelect'
 import { AppHeader } from '@/components/AppHeader'
 import { useIngredients } from '@/hooks/useIngredients'
 import { useRouter } from 'expo-router'
@@ -32,7 +32,7 @@ export default function NuovoIngredienteScreen() {
   
   const showToast = (title: string, options: any) => {
     if (!toastContext) return
-    const toastFn = typeof toastContext === 'function' ? toastContext : (toastContext.toast || toastContext.show)
+    const toastFn = typeof toastContext === 'function' ? toastContext : (toastContext.show || toastContext.show)
     if (typeof toastFn === 'function') {
       toastFn(title, options)
     } else {
@@ -144,7 +144,7 @@ export default function NuovoIngredienteScreen() {
           <XStack gap="$3">
             <YStack flex={1} gap="$2">
               <FormLabel>Categoria</FormLabel>
-              <BlinkSelect
+              <InlineSelect
                 items={INGREDIENT_CATEGORIES}
                 value={form.category}
                 onValueChange={(val) => setForm({ ...form, category: val })}
@@ -152,7 +152,7 @@ export default function NuovoIngredienteScreen() {
             </YStack>
             <YStack flex={1} gap="$2">
               <FormLabel>Unità di Misura</FormLabel>
-              <BlinkSelect
+              <InlineSelect
                 items={MEASUREMENT_UNITS}
                 value={form.measurementUnit}
                 onValueChange={(val) => setForm({ ...form, measurementUnit: val })}
@@ -163,7 +163,7 @@ export default function NuovoIngredienteScreen() {
           <XStack gap="$3">
             <YStack flex={1} gap="$2">
               <FormLabel>Conservazione</FormLabel>
-              <BlinkSelect
+              <InlineSelect
                 items={CONSERVATION_TYPES}
                 value={form.conservation}
                 onValueChange={(val) => setForm({ ...form, conservation: val })}
@@ -204,7 +204,7 @@ export default function NuovoIngredienteScreen() {
                     key={allergen}
                     size="$2"
                     theme={isSelected ? 'active' : 'alt'}
-                    variant={isSelected ? 'solid' : 'outline'}
+                    variant="outlined"
                     onPress={() => toggleAllergen(allergen)}
                     icon={isSelected ? <CheckCircle2 size={14} /> : null}
                   >

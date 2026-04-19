@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BlinkProvider, createTamagui, tamaguiDefaultConfig, Theme, BlinkToastProvider } from '@blinkdotnew/mobile-ui';
+import { BlinkProvider, createTamagui, tamaguiDefaultConfig, Theme, BlinkToastProvider, PortalProvider } from '@blinkdotnew/mobile-ui';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider } from '../context/AuthContext';
 
@@ -40,24 +40,26 @@ export default function RootLayout() {
     <BlinkProvider 
       config={config} 
       defaultTheme="dark"
-      projectId={process.env.EXPO_PUBLIC_BLINK_PROJECT_ID || 'gelateria-amelie-pwa-mm3q7wry'}
+      
     >
-      <Theme name="dark">
-        <BlinkToastProvider>
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <WebStyleReset />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="login" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="+not-found" />
-              </Stack>
-              <StatusBar style="light" />
-            </AuthProvider>
-          </QueryClientProvider>
-        </BlinkToastProvider>
-      </Theme>
+      <PortalProvider shouldAddRootHost>
+        <Theme name="dark">
+          <BlinkToastProvider>
+            <QueryClientProvider client={queryClient}>
+              <AuthProvider>
+                <WebStyleReset />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="login" />
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="+not-found" />
+                </Stack>
+                <StatusBar style="light" />
+              </AuthProvider>
+            </QueryClientProvider>
+          </BlinkToastProvider>
+        </Theme>
+      </PortalProvider>
     </BlinkProvider>
   );
 }

@@ -18,13 +18,14 @@ export interface LoginResult {
 export async function loginUser(emailInput: string, password: string): Promise<LoginResult> {
   try {
     console.log('AUTH_VERSION: 4 (Debug-Assets)');
+    const db = blink.db as any
     // Normalizza l'email
     const emailToSearch = emailInput.trim().toLowerCase();
     
     console.log('loginUser: Searching for email:', emailToSearch);
 
     // Verifica configurazione SDK
-    if (!blink || !blink.db) {
+    if (!blink || !db) {
       console.error('loginUser: Blink SDK not initialized');
       return { success: false, error: 'Errore di configurazione sistema.' };
     }
@@ -33,7 +34,7 @@ export async function loginUser(emailInput: string, password: string): Promise<L
     // scarica gli utenti e filtra in memoria per sicurezza
     let allUsers: any[] = [];
     try {
-      allUsers = await blink.db.amelieUser.list() as any[];
+      allUsers = await db.amelieUser.list() as any[];
       console.log('loginUser: Database fetch success, total users:', allUsers.length);
       if (allUsers.length > 0) {
         console.log('loginUser: First user email snippet:', (allUsers[0].email || '').substring(0, 5) + '...');
@@ -101,10 +102,11 @@ export async function registerUser(
   role: 'admin' | 'staff' = 'staff'
 ): Promise<{ success: boolean; user?: AmelieUser; error?: string }> {
   try {
+    const db = blink.db as any
     const emailToSearch = email.trim().toLowerCase();
     
     // Filtro locale per evitare bug di encoding
-    const allUsers = await blink.db.amelieUser.list() as any[];
+    const allUsers = await db.amelieUser.list() as any[];
     const existing = allUsers.filter(u => u.email.toLowerCase() === emailToSearch);
     
     if (existing && existing.length > 0) {
@@ -114,7 +116,7 @@ export async function registerUser(
     const id = generateId()
     const passwordHash = await hashPassword(password)
 
-    await blink.db.amelieUser.create({
+    await db.amelieUser.create({
       id,
       email,
       passwordHash,

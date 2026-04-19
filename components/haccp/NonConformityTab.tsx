@@ -7,12 +7,12 @@ import {
   Card,
   Separator,
   Input,
-  BlinkSelect,
   useBlinkToast,
   Badge,
   Spinner,
   Theme,
 } from '@blinkdotnew/mobile-ui';
+import { InlineSelect } from '@/components/common/InlineSelect';
 import { useHaccp, NonConformity } from '@/hooks/useHaccp';
 import { Ionicons } from '@expo/vector-icons';
 import { ScrollView, Alert, View, TouchableOpacity } from 'react-native';
@@ -21,7 +21,7 @@ import { LoadingOverlay } from '@/components/LoadingOverlay';
 
 export function NonConformityTab() {
   const { nonConformities, addNonConformity, updateNonConformity, isLoading } = useHaccp();
-  const { toast } = useBlinkToast();
+  const { show } = useBlinkToast();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -43,7 +43,7 @@ export function NonConformityTab() {
 
     try {
       await addNonConformity.mutateAsync(form);
-      toast('Non conformità aperta', { variant: 'success' });
+      show('Non conformità aperta', { variant: 'success' });
       setForm({
         description: '',
         category: 'Igiene',
@@ -94,7 +94,7 @@ export function NonConformityTab() {
             <XStack gap="$3">
               <YStack flex={1} gap="$2">
                 <SizableText size="$2" color="$color11" fontWeight="600">Categoria</SizableText>
-                <BlinkSelect 
+                <InlineSelect 
                   items={[
                     { label: 'Igiene', value: 'Igiene' },
                     { label: 'Temperatura', value: 'Temperatura' },
@@ -107,7 +107,7 @@ export function NonConformityTab() {
               </YStack>
               <YStack flex={1} gap="$2">
                 <SizableText size="$2" color="$color11" fontWeight="600">Gravità</SizableText>
-                <BlinkSelect 
+                <InlineSelect 
                   items={[
                     { label: 'Bassa', value: 'bassa' },
                     { label: 'Media', value: 'media' },
@@ -202,9 +202,9 @@ function NonConformityCard({ nc, isExpanded, onToggle, onUpdate }: {
         status: status || nc.status,
         closedAt: status === 'chiusa' ? new Date().toISOString().split('T')[0] : nc.closedAt
       });
-      toast('Aggiornato', { message: 'Dati aggiornati correttamente.', variant: 'success' });
+      useBlinkToast().show('Non conformità aggiornata', { variant: 'success' });
     } catch (e) {
-      toast('Errore', { message: 'Impossibile aggiornare.', variant: 'error' });
+      useBlinkToast().show('Errore Impossibile aggiornare.', { variant: 'error' });
     }
   };
 
@@ -214,7 +214,7 @@ function NonConformityCard({ nc, isExpanded, onToggle, onUpdate }: {
         <YStack padding="$3" gap="$2">
           <XStack justifyContent="space-between" alignItems="center">
             <XStack gap="$2" alignItems="center">
-              <Badge theme={statusThemes[nc.status]}>{nc.status.replace('_', ' ').toUpperCase()}</Badge>
+              <Badge variant={statusThemes[nc.status]}>{nc.status.replace('_', ' ').toUpperCase()}</Badge>
               <SizableText size="$1" fontWeight="700" color={severityColors[nc.severity]}>
                 {nc.severity.toUpperCase()}
               </SizableText>
@@ -229,7 +229,7 @@ function NonConformityCard({ nc, isExpanded, onToggle, onUpdate }: {
               <Ionicons name="calendar-outline" size={12} color="#94a3b8" />
               <SizableText size="$1" color="$color10">{formatDate(nc.detectedAt)}</SizableText>
             </XStack>
-            <Badge size="$1" theme="alt">{nc.category}</Badge>
+            <Badge variant="info">{nc.category}</Badge>
           </XStack>
         </YStack>
       </TouchableOpacity>
@@ -267,7 +267,7 @@ function NonConformityCard({ nc, isExpanded, onToggle, onUpdate }: {
           </XStack>
 
           <XStack gap="$2">
-            <Button flex={1} size="$2" variant="outline" onPress={() => handleUpdate()}>
+            <Button flex={1} size="$2" variant="outlined" onPress={() => handleUpdate()}>
               Salva Note
             </Button>
             {nc.status !== 'chiusa' && (

@@ -21,13 +21,13 @@ export function useProducts() {
   const productsQuery = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      const data = await blink.db.amelieProduct.list({
+      const data = await (blink.db as any).amelieProduct.list({
         orderBy: { name: 'asc' }
       }) as any[];
       
-      const recipes = await blink.db.amelieRecipe.list() as any[];
-      const recipeIngredients = await blink.db.amelieRecipeIngredient.list() as any[];
-      const ingredients = await blink.db.amelieIngredient.list() as any[];
+      const recipes = await (blink.db as any).amelieRecipe.list() as any[];
+      const recipeIngredients = await (blink.db as any).amelieRecipeIngredient.list() as any[];
+      const ingredients = await (blink.db as any).amelieIngredient.list() as any[];
 
       return data.map(p => {
         // Find latest recipe for this product (check both snake_case and camelCase)
@@ -75,7 +75,7 @@ export function useProducts() {
   const createProduct = useMutation({
     mutationFn: async (newProduct: Omit<Product, 'id' | 'createdAt'>) => {
       const id = `prod_${Date.now()}`;
-      return await blink.db.amelieProduct.create({
+      return await (blink.db as any).amelieProduct.create({
         id,
         name: newProduct.name,
         type: newProduct.type,
@@ -98,7 +98,7 @@ export function useProducts() {
       if (data.salePrice !== undefined) updateData.salePrice = data.salePrice;
       if (data.note !== undefined) updateData.note = data.note;
       
-      return await blink.db.amelieProduct.update(id, updateData);
+      return await (blink.db as any).amelieProduct.update(id, updateData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -108,7 +108,7 @@ export function useProducts() {
   const deleteProduct = useMutation({
     mutationFn: async (id: string) => {
       // Check if product has recipes
-      const recipes = await blink.db.amelieRecipe.list({
+      const recipes = await (blink.db as any).amelieRecipe.list({
         where: { product_id: id }
       }) as any[];
 
@@ -116,7 +116,7 @@ export function useProducts() {
         throw new Error(`Impossibile eliminare: il prodotto ha ${recipes.length} ricette collegate.`);
       }
 
-      return await blink.db.amelieProduct.delete(id);
+      return await (blink.db as any).amelieProduct.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });

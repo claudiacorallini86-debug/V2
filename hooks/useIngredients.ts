@@ -39,7 +39,7 @@ export interface IngredientLot {
   lotCode: string
   supplier: string
   deliveryDate: string
-  expiryDate?: string
+  expiryDate?: Date
   initialQuantity: number
   conservation: string
   status: 'active' | 'exhausted' | 'expired' | 'recalled'
@@ -91,7 +91,7 @@ export function useIngredients() {
   const ingredientsQuery = useQuery({
     queryKey: ['ingredients'],
     queryFn: async () => {
-      const data = await blink.db.amelieIngredient.list() as any[]
+      const data = await (blink.db as any).amelieIngredient.list() as any[]
       return data.map(i => ({
         ...i,
         id: i.id,
@@ -109,7 +109,7 @@ export function useIngredients() {
     queryKey: ['ingredient-lots'],
     queryFn: async () => {
       try {
-        const data = await blink.db.amelieIngredientLot.list({
+        const data = await (blink.db as any).amelieIngredientLot.list({
           orderBy: { delivery_date: 'desc' }
         }) as any[]
         
@@ -151,7 +151,7 @@ export function useIngredients() {
     queryKey: ['stock-movements'],
     queryFn: async () => {
       try {
-        const data = await blink.db.amelieStockMovement.list({
+        const data = await (blink.db as any).amelieStockMovement.list({
           orderBy: { moved_at: 'desc' }
         }) as any[]
         
@@ -219,7 +219,7 @@ export function useIngredients() {
   const createIngredient = useMutation({
     mutationFn: async (newIngredient: Omit<Ingredient, 'id' | 'createdAt'>) => {
       const id = `ing_${Date.now()}`
-      return await blink.db.amelieIngredient.create({
+      return await (blink.db as any).amelieIngredient.create({
         id,
         name: newIngredient.name,
         category: newIngredient.category,
@@ -248,7 +248,7 @@ export function useIngredients() {
       if (data.defaultSupplier !== undefined) updateData.default_supplier = data.defaultSupplier
       if (data.note !== undefined) updateData.note = data.note
       
-      return await blink.db.amelieIngredient.update(id, updateData)
+      return await (blink.db as any).amelieIngredient.update(id, updateData)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ingredients'] })
@@ -257,11 +257,11 @@ export function useIngredients() {
 
   const deleteIngredient = useMutation({
     mutationFn: async (id: string) => {
-      const recipeIngredients = await blink.db.amelieRecipeIngredient.list({
+      const recipeIngredients = await (blink.db as any).amelieRecipeIngredient.list({
         where: { ingredientId: id }
       }) as any[]
       
-      const activeLots = await blink.db.amelieIngredientLot.list({
+      const activeLots = await (blink.db as any).amelieIngredientLot.list({
         where: { 
           ingredientId: id,
           status: 'active'
@@ -272,7 +272,7 @@ export function useIngredients() {
         throw new Error(`Impossibile eliminare: ingrediente in uso in ${recipeIngredients.length} ricette e ${activeLots.length} lotti attivi.`)
       }
 
-      return await blink.db.amelieIngredient.delete(id)
+      return await (blink.db as any).amelieIngredient.delete(id)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ingredients'] })
@@ -282,7 +282,7 @@ export function useIngredients() {
   const deleteLot = useMutation({
     mutationFn: async (id: string) => {
       // Check if lot has movements (other than the initial one)
-      const movements = await blink.db.amelieStockMovement.list({
+      const movements = await (blink.db as any).amelieStockMovement.list({
         where: { lotId: id }
       }) as any[]
       
@@ -293,10 +293,10 @@ export function useIngredients() {
 
       // Delete the initial movement first
       if (movements.length === 1) {
-        await blink.db.amelieStockMovement.delete(movements[0].id)
+        await (blink.db as any).amelieStockMovement.delete(movements[0].id)
       }
 
-      return await blink.db.amelieIngredientLot.delete(id)
+      return await (blink.db as any).amelieIngredientLot.delete(id)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ingredient-lots'] })
@@ -322,9 +322,9 @@ export function useIngredients() {
         note: rest.note,
       } as any
       
-      await blink.db.amelieIngredientLot.create(lotData)
+      await (blink.db as any).amelieIngredientLot.create(lotData)
       
-      await blink.db.amelieStockMovement.create({
+      await (blink.db as any).amelieStockMovement.create({
         id: `mov_${Date.now()}`,
         ingredient_id: rest.ingredientId,
         lot_id: id,
@@ -356,7 +356,7 @@ export function useIngredients() {
       if (data.status !== undefined) updateData.status = data.status
       if (data.note !== undefined) updateData.note = data.note
       
-      return await blink.db.amelieIngredientLot.update(id, updateData)
+      return await (blink.db as any).amelieIngredientLot.update(id, updateData)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ingredient-lots'] })
@@ -368,7 +368,7 @@ export function useIngredients() {
       const id = `mov_${Date.now()}`
       const movedAt = new Date().toISOString()
       
-      const res = await blink.db.amelieStockMovement.create({
+      const res = await (blink.db as any).amelieStockMovement.create({
         id,
         ingredient_id: mov.ingredientId,
         lot_id: mov.lotId,
@@ -417,7 +417,7 @@ export function useLotPhotos(lotId?: string) {
     queryKey: ['lot-photos', lotId],
     queryFn: async () => {
       if (!lotId) return []
-      const data = await blink.db.amelieLotPhoto.list({
+      const data = await (blink.db as any).amelieLotPhoto.list({
         where: { lot_id: lotId },
         orderBy: { sortOrder: 'asc' }
       }) as any[]
@@ -436,7 +436,7 @@ export function useLotPhotos(lotId?: string) {
   const addPhoto = useMutation({
     mutationFn: async (photo: Omit<LotPhoto, 'id' | 'createdAt'>) => {
       const id = `photo_${Date.now()}`
-      return await blink.db.amelieLotPhoto.create({
+      return await (blink.db as any).amelieLotPhoto.create({
         id,
         lot_id: photo.lotId,
         url: photo.url,
@@ -451,7 +451,7 @@ export function useLotPhotos(lotId?: string) {
 
   const deletePhoto = useMutation({
     mutationFn: async (id: string) => {
-      return await blink.db.amelieLotPhoto.delete(id)
+      return await (blink.db as any).amelieLotPhoto.delete(id)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lot-photos', lotId] })
@@ -461,7 +461,7 @@ export function useLotPhotos(lotId?: string) {
   const updatePhotoOrder = useMutation({
     mutationFn: async (photos: { id: string, sortOrder: number }[]) => {
       return await Promise.all(photos.map(p => 
-        blink.db.amelieLotPhoto.update(p.id, { sort_order: p.sortOrder } as any)
+        (blink.db as any).amelieLotPhoto.update(p.id, { sort_order: p.sortOrder } as any)
       ))
     },
     onSuccess: () => {
@@ -486,7 +486,7 @@ export function useIngredientPrices(ingredientId?: string) {
     queryFn: async () => {
       if (!ingredientId) return []
       try {
-        const data = await blink.db.amelieIngredientPrice.list({
+        const data = await (blink.db as any).amelieIngredientPrice.list({
           where: { ingredientId }
         }) as any[]
         
@@ -529,7 +529,7 @@ export function useIngredientPrices(ingredientId?: string) {
       }
       
       const id = `prc_${Date.now()}`
-      return await blink.db.amelieIngredientPrice.create({
+      return await (blink.db as any).amelieIngredientPrice.create({
         id,
         ingredient_id: newPrice.ingredientId,
         date: newPrice.date,

@@ -3,9 +3,47 @@ import { TemperatureLog, HaccpChecklist, NonConformity } from '@/hooks/useHaccp'
 import { formatDate } from './date';
 
 /**
- * Realizza un export PDF semplificato basato su window.print() per Web/PWA.
- * Su mobile apre una nuova finestra con il contenuto HTML.
+ * Realizza un export PDF con supporto web e mobile.
+ * Web: usa window.print() per stampa/salvataggio
+ * Mobile: genera PDF con expo-print e lo condivide
  */
+
+async function generateAndSharePDF(html: string, filename: string) {
+  try {
+    if (Platform.OS === 'web') {
+      // Web: usa window.print() per stampa/salvataggio
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+        setTimeout(() => {
+          printWindow.print();
+        }, 500);
+      } else {
+        Alert.alert('Errore', 'Il browser ha bloccato l\'apertura della finestra di stampa. Controlla le impostazioni dei popup.');
+      }
+    } else {
+      // Mobile: genera PDF con expo-print e condividi
+      const Print = await import('expo-print');
+      const Sharing = await import('expo-sharing');
+      
+      const { uri } = await Print.printToFileAsync({
+        html: html,
+        base64: false,
+      });
+
+      // Condividi il PDF
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `Condividi ${filename}`,
+        UTI: 'com.adobe.pdf', // per iOS
+      });
+    }
+  } catch (error) {
+    Alert.alert('Errore', 'Impossibile generare il PDF. Riprova.');
+    console.error('PDF generation error:', error);
+  }
+}
 export async function exportHaccpToPDF(data: {
   month: string;
   temperatureLogs: TemperatureLog[];
@@ -137,21 +175,7 @@ export async function exportHaccpToPDF(data: {
     </html>
   `;
 
-  if (Platform.OS === 'web') {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      // On some browsers we need to wait for content to load
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    } else {
-      Alert.alert('Errore', 'Il browser ha bloccato l\'apertura della finestra di stampa. Controlla le impostazioni dei popup.');
-    }
-  } else {
-    Alert.alert('Export PDF', 'L\'esportazione PDF reale è ottimizzata per la versione Web/PWA. Su questa piattaforma puoi visualizzare i dati a schermo.');
-  }
+  await generateAndSharePDF(html, `HACCP_${month.replace(/\//g, '-')}`);
 }
 
 export async function exportTraceabilityToPDF(data: {
@@ -243,20 +267,7 @@ export async function exportTraceabilityToPDF(data: {
     </html>
   `;
 
-  if (Platform.OS === 'web') {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    } else {
-      Alert.alert('Errore', 'Popup bloccati dal browser.');
-    }
-  } else {
-    Alert.alert('Export PDF', 'Utilizza la versione Web per generare i PDF di tracciabilità.');
-  }
+  await generateAndSharePDF(html, `Tracciabilita_${title.replace(/\s+/g, '_')}`);
 }
 
 export async function exportStockToPDF(data: {
@@ -336,18 +347,7 @@ export async function exportStockToPDF(data: {
     </html>
   `;
 
-  if (Platform.OS === 'web') {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    }
-  } else {
-    Alert.alert('Export PDF', 'Utilizza la versione Web per esportare le giacenze in PDF.');
-  }
+  await generateAndSharePDF(html, `Magazzino_${date.replace(/\//g, '-')}`);
 }
 
 export async function exportProductionListToPDF(data: {
@@ -423,18 +423,7 @@ export async function exportProductionListToPDF(data: {
     </html>
   `;
 
-  if (Platform.OS === 'web') {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    }
-  } else {
-    Alert.alert('Export PDF', 'Utilizza la versione Web per esportare la lista produzioni in PDF.');
-  }
+  await generateAndSharePDF(html, `Produzioni_${date.replace(/\//g, '-')}`);
 }
 
 export async function exportIngredientsToPDF(data: {
@@ -512,16 +501,5 @@ export async function exportIngredientsToPDF(data: {
     </html>
   `;
 
-  if (Platform.OS === 'web') {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    }
-  } else {
-    Alert.alert('Export PDF', 'Utilizza la versione Web per esportare l\'anagrafica ingredienti in PDF.');
-  }
+  await generateAndSharePDF(html, `Ingredienti_${date.replace(/\//g, '-')}`);
 }

@@ -44,13 +44,13 @@ export function useProduction() {
   const batchesQuery = useQuery({
     queryKey: ['production-batches'],
     queryFn: async () => {
-      const batches = await blink.db.amelieProductionBatch.list({
+      const batches = await (blink.db as any).amelieProductionBatch.list({
         orderBy: { produced_at: 'desc' }
       }) as any[];
       
-      const products = await blink.db.amelieProduct.list() as any[];
-      const recipes = await blink.db.amelieRecipe.list() as any[];
-      const users = await blink.db.amelieUser.list() as any[];
+      const products = await (blink.db as any).amelieProduct.list() as any[];
+      const recipes = await (blink.db as any).amelieRecipe.list() as any[];
+      const users = await (blink.db as any).amelieUser.list() as any[];
 
       return batches.map(b => {
         const product = products.find(p => p.id === b.product_id || p.id === b.productId);
@@ -102,7 +102,7 @@ export function useProduction() {
       const batchId = `bat_${Date.now()}`;
 
       // 1. Create Production Batch
-      await blink.db.amelieProductionBatch.create({
+      await (blink.db as any).amelieProductionBatch.create({
         id: batchId,
         user_id: data.userId,
         product_id: data.productId,
@@ -129,7 +129,7 @@ export function useProduction() {
       }));
 
       if (usages.length > 0) {
-        await blink.db.amelieBatchIngredientUsage.createMany(usages as any[]);
+        await (blink.db as any).amelieBatchIngredientUsage.createMany(usages as any[]);
       }
 
       // 3. Create Stock Movements (Scalamento magazzino)
@@ -147,7 +147,7 @@ export function useProduction() {
       }));
 
       if (movements.length > 0) {
-        await blink.db.amelieStockMovement.createMany(movements as any[]);
+        await (blink.db as any).amelieStockMovement.createMany(movements as any[]);
       }
 
       return batchId;
@@ -164,25 +164,25 @@ export function useProduction() {
   const deleteBatch = useMutation({
     mutationFn: async (id: string) => {
       // 1. Delete usages
-      const usages = await blink.db.amelieBatchIngredientUsage.list({
+      const usages = await (blink.db as any).amelieBatchIngredientUsage.list({
         where: { batch_id: id }
       }) as any[];
       
       for (const u of usages) {
-        await blink.db.amelieBatchIngredientUsage.delete(u.id);
+        await (blink.db as any).amelieBatchIngredientUsage.delete(u.id);
       }
 
       // 2. Delete stock movements related to this production
-      const movements = await blink.db.amelieStockMovement.list({
+      const movements = await (blink.db as any).amelieStockMovement.list({
         where: { referral: `Produzione batch ${id}` }
       }) as any[];
 
       for (const m of movements) {
-        await blink.db.amelieStockMovement.delete(m.id);
+        await (blink.db as any).amelieStockMovement.delete(m.id);
       }
 
       // 3. Delete the batch itself
-      return await blink.db.amelieProductionBatch.delete(id);
+      return await (blink.db as any).amelieProductionBatch.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['production-batches'] });
@@ -206,11 +206,11 @@ export function useBatchDetail(batchId?: string) {
     queryFn: async () => {
       if (!batchId) return null;
       
-      const usages = await blink.db.amelieBatchIngredientUsage.list({
+      const usages = await (blink.db as any).amelieBatchIngredientUsage.list({
         where: { batch_id: batchId }
       }) as any[];
       
-      const lots = await blink.db.amelieIngredientLot.list() as any[];
+      const lots = await (blink.db as any).amelieIngredientLot.list() as any[];
 
       return usages.map(u => {
         const lot = lots.find(l => l.id === (u.lot_id || u.lotId));
@@ -242,12 +242,12 @@ export function useLotTraceability(lotId?: string, type: 'ingredient' | 'product
 
       if (type === 'ingredient') {
         // Forward: Ingredient Lot -> Production Batches
-        const usages = await blink.db.amelieBatchIngredientUsage.list({
+        const usages = await (blink.db as any).amelieBatchIngredientUsage.list({
           where: { lot_id: lotId }
         }) as any[];
         
-        const batches = await blink.db.amelieProductionBatch.list() as any[];
-        const products = await blink.db.amelieProduct.list() as any[];
+        const batches = await (blink.db as any).amelieProductionBatch.list() as any[];
+        const products = await (blink.db as any).amelieProduct.list() as any[];
 
         return usages.map(u => {
           const batch = batches.find(b => b.id === (u.batch_id || u.batchId));
@@ -265,12 +265,12 @@ export function useLotTraceability(lotId?: string, type: 'ingredient' | 'product
         });
       } else {
         // Backward: Production Lot (Batch) -> Ingredient Lots used
-        const usages = await blink.db.amelieBatchIngredientUsage.list({
+        const usages = await (blink.db as any).amelieBatchIngredientUsage.list({
           where: { batch_id: lotId }
         }) as any[];
         
-        const lots = await blink.db.amelieIngredientLot.list() as any[];
-        const ingredients = await blink.db.amelieIngredient.list() as any[];
+        const lots = await (blink.db as any).amelieIngredientLot.list() as any[];
+        const ingredients = await (blink.db as any).amelieIngredient.list() as any[];
 
         return usages.map(u => {
           const lot = lots.find(l => l.id === (u.lot_id || u.lotId));
