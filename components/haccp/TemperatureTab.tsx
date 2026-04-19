@@ -20,7 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 
 export function TemperatureTab() {
-  const { equipment, temperatureLogs, addTemperatureLog, createEquipment, deleteEquipment, isLoading } = useHaccp();
+  const { equipment, temperatureLogs, addTemperatureLog, fillMissingDays, createEquipment, deleteEquipment, isLoading } = useHaccp();
   const { show } = useBlinkToast();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -33,7 +33,7 @@ export function TemperatureTab() {
     }
   };
 
-  // Form rilevano
+  // Form rilevazione
   const [form, setForm] = useState({ equipmentId: '', temperature: '', note: '' });
 
   // Storico
@@ -43,6 +43,10 @@ export function TemperatureTab() {
   // Gestione attrezzature
   const [showEquipmentMgmt, setShowEquipmentMgmt] = useState(false);
   const [newEq, setNewEq] = useState({ name: '', min: '', max: '' });
+
+  // Stato dialog "Compila giorni mancanti"
+  const [fillPreview, setFillPreview] = useState<{ missingCount: number; refLog: TemperatureLog } | null>(null);
+  const [isFillLoading, setIsFillLoading] = useState(false);
 
   const selectedEquipment = useMemo(
     () => equipment.find(e => e.id === form.equipmentId),
@@ -65,6 +69,61 @@ export function TemperatureTab() {
       ),
     [temperatureLogs, search]
   );
+
+  // Trova l'ultimo record manuale (non auto-compilato)
+  const lastManualLog = useMemo(() => {
+    return temperatureLogs.find(l => !l.autoFilled) ?? null;
+  }, [temperatureLogs]);
+
+  // Calcola quanti giorni mancano tra l'ultimo manuale e ieri
+  const computeMissingDays = (refLog: TemperatureLog): string[] => {
+    const existingDates = new Set(
+      temperatureLogs.map(l => l.recordedAt.substring(0, 10))
+    );
+    const refDate = new Date(refLog.recordedAt);
+    refDate.setHours(0, 0, 0, 0);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(23, 59, 59, 999);
+
+    const missing: string[] = [];
+    const cursor = new Date(refDate);
+    cursor.setDate(cursor.getDate() + 1);
+    while (cursor <= yesterday) {
+      const ds = cursor.toISOString().substring(0, 10);
+      if (!existingDates.has(ds)) missing.push(ds);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return missing;
+  };
+
+  const handlePreviewFill = () => {
+    if (!lastManualLog) {
+      showAlert('Nessun record di riferimento', 'Inserisci almeno una rilevazione manuale per poter compilare i giorni mancanti.');
+      return;
+    }
+    const missing = computeMissingDays(lastManualLog);
+    if (missing.length === 0) {
+      show('Nessun giorno mancante da compilare.', { variant: 'success' });
+      return;
+    }
+    setFillPreview({ missingCount: missing.length, refLog: lastManualLog });
+  };
+
+  const handleConfirmFill = async () => {
+    if (!fillPreview) return;
+    setIsFillLoading(true);
+    try {
+      const filled = await fillMissingDays.mutateAsync(fillPreview.refLog);
+      const count = Array.isArray(filled) ? filled.length : fillPreview.missingCount;
+      show(`${count} giorni compilati automaticamente.`, { variant: 'success' });
+    } catch (e: any) {
+      show(`Errore: ${e.message}`, { variant: 'error' });
+    } finally {
+      setIsFillLoading(false);
+      setFillPreview(null);
+    }
+  };
 
   const handleAddLog = async () => {
     if (!form.equipmentId || !form.temperature) {
@@ -150,9 +209,110 @@ export function TemperatureTab() {
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
       <LoadingOverlay
-        visible={addTemperatureLog.isPending || createEquipment.isPending || deleteEquipment.isPending}
+        visible={addTemperatureLog.isPending || createEquipment.isPending || deleteEquipment.isPending || isFillLoading}
         message="Operazione in corso..."
       />
+
+      {/* Dialog conferma compilazione giorni mancanti */}
+      {fillPreview && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          zIndex: 999,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 24,
+        }}>
+          <View style={{
+            backgroundColor: '#1a2234',
+            borderRadius: 16,
+            padding: 24,
+            width: '100%',
+            maxWidth: 420,
+            borderWidth: 1,
+            borderColor: '#2d3a50',
+          }}>
+            <XStack gap="$2" alignItems="center" marginBottom="$3">
+              <Ionicons name="calendar-outline" size={22} color="#4A90D9" />
+              <SizableText size="$5" fontWeight="800" color="$color12">
+                Compila Giorni Mancanti
+              </SizableText>
+            </XStack>
+
+            <YStack gap="$2" marginBottom="$4">
+              <SizableText size="$3" color="$color11">
+                Verranno creati automaticamente{' '}
+                <SizableText size="$3" fontWeight="800" color="$color12">
+                  {fillPreview.missingCount} {fillPreview.missingCount === 1 ? 'giorno' : 'giorni'}
+                </SizableText>{' '}
+                con i seguenti valori di riferimento:
+              </SizableText>
+
+              <View style={{
+                backgroundColor: '#0f1823',
+                borderRadius: 10,
+                padding: 12,
+                marginTop: 8,
+                borderWidth: 1,
+                borderColor: '#2d3a50',
+                gap: 4,
+              }}>
+                <XStack gap="$2" alignItems="center">
+                  <Ionicons name="hardware-chip-outline" size={14} color="#94a3b8" />
+                  <SizableText size="$2" color="$color11">
+                    Attrezzatura:{' '}
+                    <SizableText size="$2" fontWeight="700" color="$color12">
+                      {fillPreview.refLog.equipmentName}
+                    </SizableText>
+                  </SizableText>
+                </XStack>
+                <XStack gap="$2" alignItems="center">
+                  <Ionicons name="thermometer-outline" size={14} color="#94a3b8" />
+                  <SizableText size="$2" color="$color11">
+                    Temperatura:{' '}
+                    <SizableText size="$2" fontWeight="700" color="$color12">
+                      {fillPreview.refLog.temperature.toFixed(1)}°C
+                    </SizableText>
+                  </SizableText>
+                </XStack>
+                {fillPreview.refLog.note && (
+                  <XStack gap="$2" alignItems="center">
+                    <Ionicons name="chatbubble-outline" size={14} color="#94a3b8" />
+                    <SizableText size="$2" color="$color11" fontStyle="italic">
+                      Nota: {fillPreview.refLog.note}
+                    </SizableText>
+                  </XStack>
+                )}
+              </View>
+
+              <SizableText size="$1" color="$color10" marginTop="$1">
+                I record auto-compilati saranno marcati con un'etichetta speciale e non sovrascriveranno dati esistenti.
+              </SizableText>
+            </YStack>
+
+            <XStack gap="$3">
+              <Button
+                flex={1}
+                variant="outlined"
+                onPress={() => setFillPreview(null)}
+                disabled={isFillLoading}
+              >
+                Annulla
+              </Button>
+              <Button
+                flex={1}
+                theme="active"
+                onPress={handleConfirmFill}
+                disabled={isFillLoading}
+                icon={isFillLoading ? <Spinner color="white" size="small" /> : <Ionicons name="checkmark-circle-outline" size={18} color="white" />}
+              >
+                Conferma
+              </Button>
+            </XStack>
+          </View>
+        </View>
+      )}
+
       <YStack padding="$4" gap="$4" paddingBottom="$10">
 
         {/* Banner fuori range */}
@@ -184,6 +344,43 @@ export function TemperatureTab() {
             </YStack>
           </YStack>
         )}
+
+        {/* Pulsante Compila Giorni Mancanti */}
+        <TouchableOpacity
+          onPress={handlePreviewFill}
+          activeOpacity={0.8}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            backgroundColor: '#1a2a3f',
+            borderWidth: 1.5,
+            borderColor: '#4A90D9',
+            borderRadius: 12,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+          }}
+        >
+          <Ionicons name="calendar-outline" size={18} color="#4A90D9" />
+          <SizableText size="$3" fontWeight="700" color="#4A90D9">
+            Compila Giorni Mancanti
+          </SizableText>
+          {lastManualLog && (
+            <View style={{
+              backgroundColor: '#0f1823',
+              borderRadius: 20,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderWidth: 1,
+              borderColor: '#2d3a50',
+            }}>
+              <SizableText size="$1" color="$color10">
+                dal {lastManualLog.recordedAt.substring(0, 10)}
+              </SizableText>
+            </View>
+          )}
+        </TouchableOpacity>
 
         {/* Form nuova rilevazione */}
         <Card bordered padding="$4" backgroundColor="$color1" gap="$4">
@@ -398,10 +595,33 @@ export function TemperatureTab() {
 
 function TemperatureLogCard({ log }: { log: TemperatureLog }) {
   return (
-    <Card bordered padding="$3" backgroundColor="$color1" borderColor={log.outOfRange ? '$red6' : '$color4'}>
+    <Card
+      bordered
+      padding="$3"
+      backgroundColor="$color1"
+      borderColor={log.outOfRange ? '$red6' : log.autoFilled ? '$yellow6' : '$color4'}
+    >
       <XStack justifyContent="space-between" alignItems="center">
         <YStack gap="$1" flex={1}>
-          <SizableText fontWeight="700">{log.equipmentName}</SizableText>
+          <XStack gap="$2" alignItems="center">
+            <SizableText fontWeight="700">{log.equipmentName}</SizableText>
+            {log.autoFilled && (
+              <View style={{
+                backgroundColor: '#2a2010',
+                borderRadius: 6,
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                borderWidth: 1,
+                borderColor: '#92400e',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 3,
+              }}>
+                <Ionicons name="flash-outline" size={10} color="#f59e0b" />
+                <SizableText size="$1" color="#f59e0b" fontWeight="700">AUTO</SizableText>
+              </View>
+            )}
+          </XStack>
           <XStack gap="$2" alignItems="center">
             <Ionicons name="calendar-outline" size={12} color="#94a3b8" />
             <SizableText size="$1" color="$color10">

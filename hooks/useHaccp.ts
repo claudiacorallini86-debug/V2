@@ -17,6 +17,7 @@ export interface TemperatureLog {
   recordedAt: string;
   outOfRange: boolean;
   note?: string;
+  autoFilled?: boolean;
   created_at: string;
 }
 
@@ -108,6 +109,7 @@ export function useHaccp() {
         recordedAt: l.recordedAt || l.recorded_at,
         outOfRange: Boolean(l.outOfRange || l.out_of_range),
         note: l.note,
+        autoFilled: Boolean(Number(l.autoFilled ?? l.auto_filled ?? 0)),
         created_at: l.created_at
       })) as TemperatureLog[];
     }
@@ -122,8 +124,60 @@ export function useHaccp() {
         temperature: data.temperature,
         out_of_range: data.outOfRange ? 1 : 0,
         note: data.note,
-        recorded_at: recordedAt
+        recorded_at: recordedAt,
+        auto_filled: 0
       } as any);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['haccp-temperature-logs'] })
+  });
+
+  const fillMissingDays = useMutation({
+    mutationFn: async (referenceLog: TemperatureLog) => {
+      // Recupera tutti i log esistenti
+      const allLogs = await (blink.db as any).amelieHaccpTemperatureLog.list() as any[];
+
+      // Ottieni le date già presenti come Set di stringhe YYYY-MM-DD
+      const existingDates = new Set(
+        allLogs.map((l: any) => {
+          const d = l.recordedAt || l.recorded_at || '';
+          return d.substring(0, 10);
+        })
+      );
+
+      // Trova il range: dal giorno successivo all'ultimo record manuale fino a ieri
+      const refDate = new Date(referenceLog.recordedAt);
+      refDate.setHours(0, 0, 0, 0);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(23, 59, 59, 999);
+
+      // Costruisce la lista dei giorni mancanti
+      const missingDates: string[] = [];
+      const cursor = new Date(refDate);
+      cursor.setDate(cursor.getDate() + 1); // parte dal giorno dopo il riferimento
+      while (cursor <= yesterday) {
+        const dateStr = cursor.toISOString().substring(0, 10);
+        if (!existingDates.has(dateStr)) {
+          missingDates.push(dateStr);
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      if (missingDates.length === 0) return [];
+
+      // Crea i record auto-compilati
+      const newRecords = missingDates.map((dateStr, i) => ({
+        id: `tlog_auto_${Date.now()}_${i}`,
+        equipment_name: referenceLog.equipmentName,
+        temperature: referenceLog.temperature,
+        out_of_range: referenceLog.outOfRange ? 1 : 0,
+        note: referenceLog.note || null,
+        recorded_at: `${dateStr}T${referenceLog.recordedAt.substring(11, 19) || '08:00:00'}`,
+        auto_filled: 1
+      }));
+
+      await (blink.db as any).amelieHaccpTemperatureLog.createMany(newRecords as any[]);
+      return missingDates;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['haccp-temperature-logs'] })
   });
@@ -288,6 +342,7 @@ export function useHaccp() {
     createEquipment,
     deleteEquipment,
     addTemperatureLog,
+    fillMissingDays,
     createCleaningTask,
     deleteCleaningTask,
     upsertChecklist,
