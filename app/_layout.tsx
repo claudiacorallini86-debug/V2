@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
@@ -5,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BlinkProvider, createTamagui, tamaguiDefaultConfig, Theme, BlinkToastProvider, PortalProvider } from '@blinkdotnew/mobile-ui';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider } from '../context/AuthContext';
+import { initializeAdmin } from '../lib/auth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +37,10 @@ function WebStyleReset() {
 // App root layout with providers
 export default function RootLayout() {
   useFrameworkReady();
+
+  useEffect(() => {
+    initializeAdmin();
+  }, []);
 
   return (
     <BlinkProvider 

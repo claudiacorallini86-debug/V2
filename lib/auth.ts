@@ -134,3 +134,29 @@ export async function registerUser(
     return { success: false, error: 'Errore durante la registrazione.' }
   }
 }
+
+/**
+ * Inizializza l'utente admin se non esiste.
+ * Utile per il primo avvio in produzione.
+ */
+export async function initializeAdmin(): Promise<void> {
+  try {
+    const db = blink.db as any
+    const email = 'admin@amelie.it'
+    const password = 'admin123'
+    
+    // Verifica se la tabella utenti esiste e se l'admin è presente
+    const allUsers = await db.amelieUser.list() as any[]
+    const exists = allUsers.some(u => (u.email || '').toLowerCase() === email.toLowerCase())
+    
+    if (!exists) {
+      console.log('initializeAdmin: Admin not found, creating...')
+      await registerUser(email, password, 'Amministratore', 'admin')
+      console.log('initializeAdmin: Admin created successfully')
+    } else {
+      console.log('initializeAdmin: Admin already exists')
+    }
+  } catch (err) {
+    console.error('initializeAdmin error:', err)
+  }
+}
