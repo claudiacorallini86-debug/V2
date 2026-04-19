@@ -21,6 +21,12 @@ export interface TemperatureLog {
   created_at: string;
 }
 
+export interface FillSummaryItem {
+  equipmentName: string;
+  filledCount: number;
+  refTemperature: number;
+}
+
 export interface CleaningTask {
   id: string;
   taskName: string;
@@ -131,53 +137,130 @@ export function useHaccp() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['haccp-temperature-logs'] })
   });
 
-  const fillMissingDays = useMutation({
-    mutationFn: async (referenceLog: TemperatureLog) => {
-      // Recupera tutti i log esistenti
-      const allLogs = await (blink.db as any).amelieHaccpTemperatureLog.list() as any[];
+  // Calcola preview dei giorni mancanti per TUTTE le attrezzature
+  const computeFillPreview = async (): Promise<FillSummaryItem[]> => {
+    const allLogs = await (blink.db as any).amelieHaccpTemperatureLog.list({
+      orderBy: { recorded_at: 'desc' }
+    }) as any[];
 
-      // Ottieni le date già presenti come Set di stringhe YYYY-MM-DD
-      const existingDates = new Set(
-        allLogs.map((l: any) => {
-          const d = l.recordedAt || l.recorded_at || '';
-          return d.substring(0, 10);
-        })
-      );
+    const normalizedLogs = allLogs.map((l: any) => ({
+      equipmentName: (l.equipmentName || l.equipment_name) as string,
+      temperature: Number(l.temperature),
+      recordedAt: (l.recordedAt || l.recorded_at) as string,
+      outOfRange: Boolean(Number(l.outOfRange ?? l.out_of_range ?? 0)),
+      note: l.note as string | undefined,
+      autoFilled: Boolean(Number(l.autoFilled ?? l.auto_filled ?? 0)),
+    }));
 
-      // Trova il range: dal giorno successivo all'ultimo record manuale fino a ieri
-      const refDate = new Date(referenceLog.recordedAt);
+    // Raggruppa per attrezzatura
+    const byEquipment: Record<string, typeof normalizedLogs> = {};
+    for (const log of normalizedLogs) {
+      if (!byEquipment[log.equipmentName]) byEquipment[log.equipmentName] = [];
+      byEquipment[log.equipmentName].push(log);
+    }
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(23, 59, 59, 999);
+
+    const preview: FillSummaryItem[] = [];
+
+    for (const [equipmentName, logs] of Object.entries(byEquipment)) {
+      // logs è già ordinato desc, il primo è il più recente
+      const lastLog = logs[0];
+      const refDate = new Date(lastLog.recordedAt);
       refDate.setHours(0, 0, 0, 0);
+
+      const existingDatesForEq = new Set(logs.map(l => l.recordedAt.substring(0, 10)));
+
+      let missingCount = 0;
+      const cursor = new Date(refDate);
+      cursor.setDate(cursor.getDate() + 1);
+      while (cursor <= yesterday) {
+        const dateStr = cursor.toISOString().substring(0, 10);
+        if (!existingDatesForEq.has(dateStr)) missingCount++;
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      if (missingCount > 0) {
+        preview.push({ equipmentName, filledCount: missingCount, refTemperature: lastLog.temperature });
+      }
+    }
+
+    return preview;
+  };
+
+  const fillMissingDays = useMutation({
+    mutationFn: async (): Promise<FillSummaryItem[]> => {
+      // Recupera tutti i log dal DB
+      const allLogs = await (blink.db as any).amelieHaccpTemperatureLog.list({
+        orderBy: { recorded_at: 'desc' }
+      }) as any[];
+
+      const normalizedLogs = allLogs.map((l: any) => ({
+        equipmentName: (l.equipmentName || l.equipment_name) as string,
+        temperature: Number(l.temperature),
+        recordedAt: (l.recordedAt || l.recorded_at) as string,
+        outOfRange: Boolean(Number(l.outOfRange ?? l.out_of_range ?? 0)),
+        note: l.note as string | undefined,
+      }));
+
+      // Raggruppa per attrezzatura (già ordinato desc → primo = più recente)
+      const byEquipment: Record<string, typeof normalizedLogs> = {};
+      for (const log of normalizedLogs) {
+        if (!byEquipment[log.equipmentName]) byEquipment[log.equipmentName] = [];
+        byEquipment[log.equipmentName].push(log);
+      }
+
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       yesterday.setHours(23, 59, 59, 999);
 
-      // Costruisce la lista dei giorni mancanti
-      const missingDates: string[] = [];
-      const cursor = new Date(refDate);
-      cursor.setDate(cursor.getDate() + 1); // parte dal giorno dopo il riferimento
-      while (cursor <= yesterday) {
-        const dateStr = cursor.toISOString().substring(0, 10);
-        if (!existingDates.has(dateStr)) {
-          missingDates.push(dateStr);
-        }
+      const allNewRecords: any[] = [];
+      const summary: FillSummaryItem[] = [];
+      let idCounter = 0;
+
+      for (const [equipmentName, logs] of Object.entries(byEquipment)) {
+        const lastLog = logs[0]; // più recente
+        const refDate = new Date(lastLog.recordedAt);
+        refDate.setHours(0, 0, 0, 0);
+
+        // Date già presenti per questa attrezzatura
+        const existingDatesForEq = new Set(logs.map(l => l.recordedAt.substring(0, 10)));
+
+        const timeSlot = lastLog.recordedAt.substring(11, 19) || '08:00:00';
+        const missingDates: string[] = [];
+
+        const cursor = new Date(refDate);
         cursor.setDate(cursor.getDate() + 1);
+        while (cursor <= yesterday) {
+          const dateStr = cursor.toISOString().substring(0, 10);
+          if (!existingDatesForEq.has(dateStr)) {
+            missingDates.push(dateStr);
+          }
+          cursor.setDate(cursor.getDate() + 1);
+        }
+
+        if (missingDates.length > 0) {
+          missingDates.forEach(dateStr => {
+            allNewRecords.push({
+              id: `tlog_auto_${Date.now()}_${idCounter++}`,
+              equipment_name: equipmentName,
+              temperature: lastLog.temperature,
+              out_of_range: lastLog.outOfRange ? 1 : 0,
+              note: lastLog.note || null,
+              recorded_at: `${dateStr}T${timeSlot}`,
+              auto_filled: 1
+            });
+          });
+          summary.push({ equipmentName, filledCount: missingDates.length, refTemperature: lastLog.temperature });
+        }
       }
 
-      if (missingDates.length === 0) return [];
+      if (allNewRecords.length === 0) return [];
 
-      // Crea i record auto-compilati
-      const newRecords = missingDates.map((dateStr, i) => ({
-        id: `tlog_auto_${Date.now()}_${i}`,
-        equipment_name: referenceLog.equipmentName,
-        temperature: referenceLog.temperature,
-        out_of_range: referenceLog.outOfRange ? 1 : 0,
-        note: referenceLog.note || null,
-        recorded_at: `${dateStr}T${referenceLog.recordedAt.substring(11, 19) || '08:00:00'}`,
-        auto_filled: 1
-      }));
-
-      await (blink.db as any).amelieHaccpTemperatureLog.createMany(newRecords as any[]);
-      return missingDates;
+      await (blink.db as any).amelieHaccpTemperatureLog.createMany(allNewRecords as any[]);
+      return summary;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['haccp-temperature-logs'] })
   });
@@ -343,6 +426,7 @@ export function useHaccp() {
     deleteEquipment,
     addTemperatureLog,
     fillMissingDays,
+    computeFillPreview,
     createCleaningTask,
     deleteCleaningTask,
     upsertChecklist,
