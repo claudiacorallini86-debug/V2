@@ -54,7 +54,7 @@ export function AppHeader({ title, onMenuPress, variant = 'default', onBack, rig
           onPress={onMenuPress}
           style={styles.menuBtn}
           activeOpacity={0.7}
-          hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+          
         >
           <Ionicons name="menu" size={24} color="#e2e8f0" />
         </TouchableOpacity>

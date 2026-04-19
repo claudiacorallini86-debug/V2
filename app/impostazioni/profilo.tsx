@@ -25,7 +25,7 @@ export default function ProfiloUtenteScreen() {
   const router = useRouter();
   const { user, signIn } = useAuth();
   const { updateUser } = useUsers();
-  const { toast } = useBlinkToast();
+  const { show } = useBlinkToast();
 
   const [form, setForm] = useState({
     displayName: '',
@@ -62,7 +62,7 @@ export default function ProfiloUtenteScreen() {
         email: form.email.trim().toLowerCase(),
       });
 
-      toast('Successo', { message: 'Profilo aggiornato correttamente.', variant: 'success' });
+      show('Profilo aggiornato correttamente.', { variant: 'success' });
       router.back();
     } catch (error: any) {
       Alert.alert('Errore', error.message || 'Si è verificato un errore durante il salvataggio.');

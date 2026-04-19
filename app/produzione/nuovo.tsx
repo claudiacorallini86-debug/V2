@@ -8,7 +8,6 @@ import {
   ScrollView,
   Input,
   Label,
-  BlinkSelect,
   useBlinkToast,
   Separator,
   Theme,
@@ -17,6 +16,7 @@ import {
   Spinner,
   Save,
 } from '@blinkdotnew/mobile-ui';
+import { InlineSelect } from '@/components/common/InlineSelect';
 import { AppHeader } from '@/components/AppHeader';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,8 +39,8 @@ export default function NuovoLottoProduzioneScreen() {
   const { ingredients, lots: allIngredientLots, lotStockMap } = useIngredients();
 
   const showToast = (title: string, options: any) => {
-    if (toastContext?.toast) {
-      toastContext.toast(title, options);
+    if (toastContext?.show) {
+      toastContext.show(title, options);
     } else if (typeof toastContext === 'function') {
       (toastContext as any)(title, options);
     } else {
@@ -64,7 +64,7 @@ export default function NuovoLottoProduzioneScreen() {
     priceUsed: number;
     rowCost: number;
     nameSnapshot: string;
-  }>>({});
+  }>>({})
 
   const [ingredientPrices, setIngredientPrices] = useState<Record<string, number>>({});
 
@@ -101,7 +101,7 @@ export default function NuovoLottoProduzioneScreen() {
       }
       setIsRecipeLoading(true);
       try {
-        const ri = await blink.db.amelieRecipeIngredient.list({
+        const ri = await (blink.db as any).amelieRecipeIngredient.list({
           where: { recipe_id: form.recipeId }
         }) as any[];
         
@@ -114,7 +114,7 @@ export default function NuovoLottoProduzioneScreen() {
           
           // Fetch price
           try {
-            const p = await blink.db.amelieIngredientPrice.list({
+            const p = await (blink.db as any).amelieIngredientPrice.list({
               where: { ingredient_id: ingId },
               orderBy: { date: 'desc' },
               limit: 1
@@ -235,7 +235,10 @@ export default function NuovoLottoProduzioneScreen() {
         quantityProduced: qtyProduced,
         producedAt: form.producedAt,
         note: form.note,
-        lotSelections: Object.values(lotSelections),
+        lotSelections: Object.entries(lotSelections).map(([ingId, sel]) => ({
+          ...sel,
+          ingredientId: ingId,
+        })),
         totalIngredientsCost: totalIngredientsCost || 0,
         totalBatchCost: totalBatchCost || 0,
         unitYield: selectedRecipe?.unitYield || 'kg',
@@ -284,7 +287,7 @@ export default function NuovoLottoProduzioneScreen() {
             <Card bordered padding="$4" backgroundColor="$color1" gap="$4">
               <YStack gap="$2">
                 <FormLabel required>Prodotto</FormLabel>
-                <BlinkSelect 
+                <InlineSelect 
                   items={productOptions}
                   value={form.productId}
                   onValueChange={(val) => setForm({ ...form, productId: val, recipeId: '' })}
@@ -294,12 +297,12 @@ export default function NuovoLottoProduzioneScreen() {
 
               <YStack gap="$2">
                 <FormLabel required>Ricetta</FormLabel>
-                <BlinkSelect 
+                <InlineSelect 
                   items={recipeOptions}
                   value={form.recipeId}
                   onValueChange={(val) => setForm({ ...form, recipeId: val })}
                   placeholder={form.productId ? "Seleziona ricetta..." : "Scegli prima un prodotto"}
-                  disabled={!form.productId}
+                  isDisabled={!form.productId}
                 />
               </YStack>
 
@@ -380,8 +383,8 @@ export default function NuovoLottoProduzioneScreen() {
                             <SizableText size="$1" color="$color10">Richiesto: {ri.quantity} {ri.unit}</SizableText>
                           </YStack>
                           {(selectedLot?.expiryDate || selectedLot?.expiry_date) && (
-                            <Badge theme={new Date(selectedLot.expiryDate || selectedLot.expiry_date) < new Date() ? 'destructive' : 'success'} size="$1">
-                              Scade: {new Date(selectedLot.expiryDate || selectedLot.expiry_date).toLocaleDateString()}
+                            <Badge variant={new Date(selectedLot.expiryDate || selectedLot.expiry_date || '') < new Date() ? 'warning' : 'success'}>
+                              Scade: {new Date(selectedLot.expiryDate || selectedLot.expiry_date || '').toLocaleDateString()}
                             </Badge>
                           )}
                         </XStack>
@@ -395,7 +398,7 @@ export default function NuovoLottoProduzioneScreen() {
                                 </SizableText>
                               </YStack>
                             ) : (
-                              <BlinkSelect 
+                              <InlineSelect 
                                 items={lotOptions}
                                 value={selection?.lotId || ''}
                                 onValueChange={(val) => {

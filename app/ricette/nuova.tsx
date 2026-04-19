@@ -7,7 +7,6 @@ import {
   Input,
   SafeArea,
   ScrollView,
-  BlinkSelect,
   useBlinkToast,
   Separator,
   Card,
@@ -19,6 +18,7 @@ import {
   Spinner,
 } from '@blinkdotnew/mobile-ui';
 import { AppHeader } from '@/components/AppHeader';
+import { InlineSelect } from '@/components/common/InlineSelect';
 import { useRecipes, RecipeIngredient } from '@/hooks/useRecipes';
 import { useProducts } from '@/hooks/useProducts';
 import { useIngredients, Ingredient } from '@/hooks/useIngredients';
@@ -26,7 +26,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Save, Plus, Trash2, ChefHat, Euro, Info, Package, AlertCircle, AlertTriangle } from '@blinkdotnew/mobile-ui';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { RECIPE_UNITS, INGREDIENT_UNITS } from '@/constants/products';
-import { Alert, Platform, TouchableOpacity } from 'react-native';
+import { Alert, FlatList, Modal, Platform, Pressable, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { blink } from '@/lib/blink';
 import { useAuth } from '@/context/AuthContext';
@@ -34,20 +34,30 @@ import { useAuth } from '@/context/AuthContext';
 export default function RecipeBuilderScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const recipeId = Array.isArray(id) ? id[0] : id;
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const isNew = !id || id === 'nuova';
+  const isNew = !recipeId || recipeId === 'nuova';
   
   const { recipes, createRecipe, deleteRecipe, isLoading: isRecipesLoading } = useRecipes();
   const { products } = useProducts();
   const { ingredients } = useIngredients();
-  const { toast } = useBlinkToast();
+  const toastContext = useBlinkToast();
+
+  const showToast = (title: string, options: any) => {
+    if (!toastContext) return;
+    const ctx: any = toastContext;
+    const toastFn = typeof ctx === 'function' ? ctx : (ctx?.toast || ctx?.show);
+    if (typeof toastFn === 'function') {
+      toastFn(title, options);
+    }
+  };
 
   // Fetch all latest prices for live calculation
   const { data: allPrices = [] } = useQuery({
     queryKey: ['all-ingredient-prices'],
     queryFn: async () => {
-      return await blink.db.amelieIngredientPrice.list({
+      return await (blink.db as any).amelieIngredientPrice.list({
         orderBy: { date: 'desc' },
         limit: 500 // Increase limit to ensure we get enough history
       }) as any[];
@@ -75,7 +85,7 @@ export default function RecipeBuilderScreen() {
     return map;
   }, [allPrices]);
   
-  const recipeToClone = recipes.find(r => r.id === id);
+  const recipeToClone = recipes.find(r => r.id === recipeId);
 
   const [form, setForm] = useState({
     name: '',
@@ -93,7 +103,7 @@ export default function RecipeBuilderScreen() {
   useEffect(() => {
     if (recipeToClone && !isNew) {
       setForm({
-        name: `${recipeToClone.name || ''} (Modificato)`,
+        name: `${recipeToClone.name || ''}`,
         productId: recipeToClone.productId || '',
         batchYield: (recipeToClone.batchYield ?? '1').toString(),
         unitYield: recipeToClone.unitYield || RECIPE_UNITS[0].value,
@@ -124,20 +134,28 @@ export default function RecipeBuilderScreen() {
 
   const removeIngredientRow = (index: number) => {
     const ingName = calculatedData.rows[index]?.name || 'questo ingrediente';
-    Alert.alert(
-      'Conferma eliminazione',
-      `Sei sicuro di voler eliminare ${ingName}? Questa azione è irreversibile.`,
-      [
-        { text: 'Annulla', style: 'cancel' },
-        { 
-          text: 'Elimina', 
-          style: 'destructive', 
-          onPress: () => {
-            setRecipeIngredients(recipeIngredients.filter((_, i) => i !== index));
-          }
-        }
-      ]
-    );
+    const confirmDelete = () => {
+      setRecipeIngredients((currentIngredients) => currentIngredients.filter((_, i) => i !== index));
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Sei sicuro di voler eliminare ${ingName}? Questa azione è irreversibile.`)) {
+        confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Conferma eliminazione',
+        `Sei sicuro di voler eliminare ${ingName}? Questa azione è irreversibile.`,
+        [
+          { text: 'Annulla', style: 'cancel' },
+          {
+            text: 'Elimina',
+            style: 'destructive',
+            onPress: confirmDelete,
+          },
+        ]
+      );
+    }
   };
 
   const updateIngredientRow = (index: number, data: Partial<Omit<RecipeIngredient, 'id' | 'recipeId'>>) => {
@@ -207,14 +225,71 @@ export default function RecipeBuilderScreen() {
     };
   }, [recipeIngredients, ingredients, form, latestPricesMap]);
 
-  const isValid = useMemo(() => {
+  const normalizedCurrentIngredients = useMemo(
+    () =>
+      recipeIngredients.map((ingredient) => ({
+        ingredientId: ingredient.ingredientId || '',
+        quantity: Number(ingredient.quantity || 0),
+        unit: ingredient.unit || '',
+        isPackaging: !!ingredient.isPackaging,
+      })),
+    [recipeIngredients]
+  );
+
+  const hasRequiredFields = useMemo(() => {
     return (
       form.name.trim().length > 0 &&
       form.productId.length > 0 &&
       recipeIngredients.length > 0 &&
-      recipeIngredients.every(ri => ri.ingredientId && ri.quantity > 0)
+      recipeIngredients.every(
+        (ingredient) =>
+          ingredient.ingredientId &&
+          Number(ingredient.quantity) > 0 &&
+          (ingredient.unit || '').trim().length > 0
+      )
     );
-  }, [form, recipeIngredients]);
+  }, [form.name, form.productId, recipeIngredients]);
+
+  const isValid = useMemo(() => {
+    if (!hasRequiredFields) return false;
+
+    if (!recipeToClone || isNew) {
+      return true;
+    }
+
+    const normalizedOriginalIngredients = (recipeToClone.ingredients || []).map((ingredient) => ({
+      ingredientId: ingredient.ingredientId || '',
+      quantity: Number(ingredient.quantity || 0),
+      unit: ingredient.unit || '',
+      isPackaging: !!ingredient.isPackaging,
+    }));
+
+    const hasFormChanges =
+      recipeToClone.name.trim() !== form.name.trim() ||
+      (recipeToClone.productId || '') !== form.productId ||
+      Number(recipeToClone.batchYield || 0) !== Number(form.batchYield || 0) ||
+      (recipeToClone.unitYield || '') !== form.unitYield ||
+      Number(recipeToClone.overheadWastePct || 0) !== Number(form.overheadWastePct || 0) ||
+      Number(recipeToClone.overheadEnergyPct || 0) !== Number(form.overheadEnergyPct || 0) ||
+      Number(recipeToClone.overheadLabourPct || 0) !== Number(form.overheadLabourPct || 0) ||
+      (recipeToClone.note || '').trim() !== form.note.trim();
+
+    const hasIngredientChanges =
+      normalizedOriginalIngredients.length !== normalizedCurrentIngredients.length ||
+      normalizedOriginalIngredients.some((ingredient, index) => {
+        const currentIngredient = normalizedCurrentIngredients[index];
+
+        return (
+          !currentIngredient ||
+          ingredient.ingredientId !== currentIngredient.ingredientId ||
+          ingredient.quantity !== currentIngredient.quantity ||
+          ingredient.unit !== currentIngredient.unit ||
+          ingredient.isPackaging !== currentIngredient.isPackaging
+        );
+      });
+
+    return hasFormChanges || hasIngredientChanges;
+  }, [form, hasRequiredFields, isNew, normalizedCurrentIngredients, recipeToClone]);
 
   const handleSave = async () => {
     if (!form.name.trim()) {
@@ -244,7 +319,7 @@ export default function RecipeBuilderScreen() {
         } as any,
         ingredients: recipeIngredients,
       });
-      toast('Salvata', { message: 'Ricetta salvata con successo.', variant: 'success' });
+      showToast('Salvata', { message: 'Ricetta salvata con successo.', variant: 'success' });
       router.back();
     } catch (error: any) {
       Alert.alert('Errore', error.message || 'Errore durante il salvataggio.');
@@ -257,7 +332,7 @@ export default function RecipeBuilderScreen() {
     const confirmDelete = () => {
       deleteRecipe.mutate(recipeToClone.id, {
         onSuccess: () => {
-          toast('Eliminata', { message: 'Ricetta rimossa correttamente.', variant: 'success' });
+          showToast('Eliminata', { message: 'Ricetta rimossa correttamente.', variant: 'success' });
           router.back();
         },
         onError: (err: any) => {
@@ -280,6 +355,33 @@ export default function RecipeBuilderScreen() {
     }
   };
 
+  if (isRecipesLoading && !recipeToClone && !isNew) {
+    return (
+      <SafeArea>
+        <AppHeader title="Caricamento ricetta..." variant="back" onBack={() => router.back()} />
+        <YStack flex={1} alignItems="center" justifyContent="center">
+          <Spinner size="large" color="$active" />
+        </YStack>
+      </SafeArea>
+    );
+  }
+
+  if (!isNew && !recipeToClone) {
+    return (
+      <SafeArea>
+        <AppHeader title="Ricetta non trovata" variant="back" onBack={() => router.back()} />
+        <YStack flex={1} alignItems="center" justifyContent="center" padding="$4" gap="$3">
+          <ChefHat size={40} color="$color8" />
+          <SizableText textAlign="center" fontWeight="700">Ricetta non trovata</SizableText>
+          <SizableText textAlign="center" color="$color10">
+            La ricetta richiesta non esiste oppure non e ancora disponibile sul dispositivo.
+          </SizableText>
+          <Button onPress={() => router.back()}>Torna indietro</Button>
+        </YStack>
+      </SafeArea>
+    );
+  }
+
   return (
     <SafeArea>
       <AppHeader 
@@ -296,19 +398,14 @@ export default function RecipeBuilderScreen() {
               disabled={createRecipe.isPending || !isValid}
               opacity={isValid ? 1 : 0.5}
             >
-              Salva v{recipeToClone ? recipeToClone.version + 1 : 1}
+              {`Salva v${recipeToClone ? recipeToClone.version + 1 : 1}`}
             </Button>
           ) : null
         }
       />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {isRecipesLoading && !recipeToClone && !isNew ? (
-          <YStack padding="$8" alignItems="center">
-            <Spinner size="large" color="$active" />
-            <SizableText marginTop="$2">Caricamento ricetta...</SizableText>
-          </YStack>
-        ) : (
+        {(
           <YStack padding="$4" gap="$4">
           <YStack gap="$2">
             <FormLabel required>Nome Ricetta</FormLabel>
@@ -322,7 +419,7 @@ export default function RecipeBuilderScreen() {
           <XStack gap="$3">
             <YStack flex={1} gap="$2">
               <FormLabel required>Prodotto Collegato</FormLabel>
-              <BlinkSelect 
+              <InlineSelect
                 items={[
                   { label: 'Seleziona prodotto...', value: '' },
                   ...products.map(p => ({ label: p.name, value: p.id }))
@@ -345,7 +442,7 @@ export default function RecipeBuilderScreen() {
             </YStack>
             <YStack flex={1} gap="$2">
               <FormLabel required>Unità Resa</FormLabel>
-              <BlinkSelect 
+              <InlineSelect
                 items={RECIPE_UNITS} 
                 value={form.unitYield} 
                 onValueChange={(v) => setForm({ ...form, unitYield: v })} 
@@ -379,7 +476,7 @@ export default function RecipeBuilderScreen() {
                           <XStack gap="$2" alignItems="center">
                             <SizableText fontWeight="700">Riga #{index + 1}</SizableText>
                             {calculatedRow?.rowCost > 0 && (
-                              <Badge theme="success" size="$1">
+                              <Badge>
                                 {calculatedRow.rowCost.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}
                               </Badge>
                             )}
@@ -395,7 +492,7 @@ export default function RecipeBuilderScreen() {
                         
                         <YStack gap="$2">
                           <Label size="$2">Ingrediente</Label>
-                          <BlinkSelect 
+                          <InlineSelect
                             items={[
                               { label: 'Seleziona ingrediente...', value: '' },
                               ...ingredients.map(i => ({ label: i.name, value: i.id }))
@@ -438,8 +535,7 @@ export default function RecipeBuilderScreen() {
                           </YStack>
                           <YStack flex={1} gap="$2">
                             <Label size="$2">Unità</Label>
-                            <BlinkSelect 
-                              size="$3"
+                            <InlineSelect
                               items={INGREDIENT_UNITS}
                               value={ri.unit}
                               onValueChange={(v) => updateIngredientRow(index, { unit: v })}
@@ -500,7 +596,7 @@ export default function RecipeBuilderScreen() {
             ) : (
               <XStack flexWrap="wrap" gap="$1.5">
                 {calculatedData.allergens.map((a, i) => (
-                  <Badge key={i} size="$1" theme="warning">{a}</Badge>
+                  <Badge key={i}>{a}</Badge>
                 ))}
               </XStack>
             )}
@@ -609,7 +705,7 @@ export default function RecipeBuilderScreen() {
             {!isNew && isAdmin && (
               <Button
                 size="$5"
-                variant="outline"
+                variant="outlined"
                 theme="destructive"
                 icon={<Trash2 size={20} color="$red10" />}
                 onPress={handleDelete}
@@ -635,6 +731,8 @@ const FormLabel = ({ children, required }: { children: string; required?: boolea
     {required && <SizableText color="$red9">*</SizableText>}
   </XStack>
 );
+
+
 
 const OverheadSlider = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
   <YStack gap="$2">

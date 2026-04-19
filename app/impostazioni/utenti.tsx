@@ -12,6 +12,8 @@ import {
   BlinkSelect,
   useBlinkToast,
   Spinner,
+  Plus,
+  Save,
 } from '@blinkdotnew/mobile-ui';
 import { AppHeader } from '@/components/AppHeader';
 import { useRouter } from 'expo-router';
@@ -41,9 +43,11 @@ export default function UserManagementScreen() {
   const router = useRouter();
   const { user: currentUser } = useAuth();
   const { users, isLoading, createUser, updateUserRole, toggleUserStatus } = useUsers();
-  const { toast } = useBlinkToast();
+  const { show } = useBlinkToast();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [roleModalUser, setRoleModalUser] = useState<Pick<AppUser, 'id' | 'displayName' | 'role'> | null>(null);
+  const [selectedRole, setSelectedRole] = useState<AppUser['role']>('staff');
   const [newUser, setNewUser] = useState({
     displayName: '',
     email: '',
@@ -80,7 +84,7 @@ export default function UserManagementScreen() {
         passwordHash: newUser.password, // Simple for now, should be hashed properly in real app
       });
       
-      toast('Utente creato', { variant: 'success' });
+      show('Utente creato', { variant: 'success' });
       setIsModalOpen(false);
       setNewUser({ displayName: '', email: '', password: '', role: 'staff' });
     } catch (error: any) {
@@ -88,34 +92,54 @@ export default function UserManagementScreen() {
     }
   };
 
-  const handleChangeRole = (userId: string, currentRole: string) => {
-    const newRole = currentRole === 'admin' ? 'staff' : 'admin';
-    Alert.alert(
-      'Cambio Ruolo',
-      `Vuoi cambiare il ruolo a ${newRole.toUpperCase()}?`,
-      [
-        { text: 'Annulla', style: 'cancel' },
-        { 
-          text: 'Conferma', 
-          onPress: () => updateUserRole.mutate({ id: userId, role: newRole }) 
-        }
-      ]
-    );
+  const handleChangeRole = (user: AppUser) => {
+    setRoleModalUser({ id: user.id, displayName: user.displayName, role: user.role });
+    setSelectedRole(user.role);
+  };
+
+  const handleConfirmRoleChange = async () => {
+    if (!roleModalUser || selectedRole === roleModalUser.role) {
+      setRoleModalUser(null);
+      return;
+    }
+
+    try {
+      await updateUserRole.mutateAsync({ id: roleModalUser.id, role: selectedRole });
+      show('Ruolo aggiornato', { variant: 'success' });
+      setRoleModalUser(null);
+    } catch (error: any) {
+      Alert.alert('Errore', error.message || 'Impossibile aggiornare il ruolo.');
+    }
   };
 
   const handleToggleStatus = (userId: string, currentStatus: boolean, name: string) => {
     const action = currentStatus ? 'Disattivare' : 'Riattivare';
-    Alert.alert(
-      `${action} Utente`,
-      `Sei sicuro di voler ${action.toLowerCase()} l'utente ${name}? Questa azione è reversibile.`,
-      [
-        { text: 'Annulla', style: 'cancel' },
-        { 
-          text: 'Conferma', 
-          onPress: () => toggleUserStatus.mutate({ id: userId, active: !currentStatus }) 
-        }
-      ]
-    );
+    const confirmToggleStatus = async () => {
+      try {
+        await toggleUserStatus.mutateAsync({ id: userId, active: !currentStatus });
+        show(currentStatus ? 'Utente sospeso' : 'Utente riattivato', { variant: 'success' });
+      } catch (error: any) {
+        Alert.alert('Errore', error.message || 'Impossibile aggiornare lo stato dell\'utente.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Sei sicuro di voler ${action.toLowerCase()} l'utente ${name}? Questa azione è reversibile.`)) {
+        confirmToggleStatus();
+      }
+    } else {
+      Alert.alert(
+        `${action} Utente`,
+        `Sei sicuro di voler ${action.toLowerCase()} l'utente ${name}? Questa azione è reversibile.`,
+        [
+          { text: 'Annulla', style: 'cancel' },
+          {
+            text: 'Conferma',
+            onPress: confirmToggleStatus,
+          },
+        ]
+      );
+    }
   };
 
   return (
@@ -163,16 +187,16 @@ export default function UserManagementScreen() {
                 <XStack gap="$2">
                   <Button 
                     size="$2" 
-                    variant="outline" 
+                    variant="outlined" 
                     icon={<Ionicons name="shield-outline" size={14} color="#94a3b8" />}
-                    onPress={() => handleChangeRole(item.id, item.role)}
+                    onPress={() => handleChangeRole(item)}
                     disabled={item.id === currentUser?.id}
                   >
                     Ruolo
                   </Button>
                   <Button 
                     size="$2" 
-                    variant="outline"
+                    variant="outlined"
                     theme={item.active ? 'destructive' : 'active'}
                     icon={<Ionicons name={item.active ? "pause-outline" : "play-outline"} size={14} color={item.active ? "#ef4444" : "#10b981"} />}
                     onPress={() => handleToggleStatus(item.id, item.active, item.displayName)}
@@ -189,7 +213,7 @@ export default function UserManagementScreen() {
 
       {/* New User Modal */}
       <Modal visible={isModalOpen} animationType="slide" onRequestClose={() => setIsModalOpen(false)}>
-        <SafeArea style={{ flex: 1, backgroundColor: '#0d1117' }}>
+        <SafeArea>
           <AppHeader title="Nuovo Utente" variant="back" onBack={() => setIsModalOpen(false)} />
           <ScrollView padding="$4">
             <YStack gap="$4">
@@ -249,7 +273,7 @@ export default function UserManagementScreen() {
               </Button>
               
               <Button 
-                variant="outline" 
+                variant="outlined" 
                 size="$5"
                 onPress={() => setIsModalOpen(false)}
               >
@@ -259,6 +283,67 @@ export default function UserManagementScreen() {
           </ScrollView>
         </SafeArea>
       </Modal>
+
+      <Modal visible={!!roleModalUser} animationType="slide" transparent onRequestClose={() => setRoleModalUser(null)}>
+        <View style={styles.modalBackdrop}>
+          <Card bordered padding="$4" backgroundColor="$color1" width="92%" maxWidth={420}>
+            <YStack gap="$4">
+              <YStack gap="$1">
+                <SizableText size="$5" fontWeight="800">Cambio Ruolo</SizableText>
+                <SizableText size="$2" color="$color10">
+                  Seleziona il ruolo per {roleModalUser?.displayName || 'questo utente'}.
+                </SizableText>
+              </YStack>
+
+              <YStack gap="$2">
+                <TouchableOpacity
+                  style={[
+                    styles.roleOption,
+                    selectedRole === 'staff' && styles.roleOptionSelected,
+                  ]}
+                  onPress={() => setSelectedRole('staff')}
+                >
+                  <YStack gap="$1" flex={1}>
+                    <SizableText fontWeight="700">Staff</SizableText>
+                    <SizableText size="$2" color="$color10">Accesso operativo standard</SizableText>
+                  </YStack>
+                  {selectedRole === 'staff' && <Ionicons name="checkmark-circle" size={20} color="#4A90D9" />}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.roleOption,
+                    selectedRole === 'admin' && styles.roleOptionSelected,
+                  ]}
+                  onPress={() => setSelectedRole('admin')}
+                >
+                  <YStack gap="$1" flex={1}>
+                    <SizableText fontWeight="700">Admin</SizableText>
+                    <SizableText size="$2" color="$color10">Accesso completo e gestione impostazioni</SizableText>
+                  </YStack>
+                  {selectedRole === 'admin' && <Ionicons name="checkmark-circle" size={20} color="#4A90D9" />}
+                </TouchableOpacity>
+              </YStack>
+
+              <XStack gap="$2">
+                <Button flex={1} variant="outlined" onPress={() => setRoleModalUser(null)}>
+                  Annulla
+                </Button>
+                <Button
+                  flex={1}
+                  theme="active"
+                  onPress={handleConfirmRoleChange}
+                  disabled={updateUserRole.isPending || selectedRole === roleModalUser?.role}
+                  icon={updateUserRole.isPending ? <Spinner color="white" /> : <Save size={18} color="white" />}
+                >
+                  Conferma
+                </Button>
+              </XStack>
+            </YStack>
+          </Card>
+        </View>
+      </Modal>
+
       <LoadingOverlay visible={createUser.isPending || updateUserRole.isPending || toggleUserStatus.isPending} />
     </SafeArea>
   );
@@ -268,5 +353,26 @@ const styles = StyleSheet.create({
   list: {
     padding: 16,
     paddingBottom: 40,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(13, 17, 23, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#0f172a',
+  },
+  roleOptionSelected: {
+    borderColor: '#4A90D9',
+    backgroundColor: '#4A90D922',
   },
 });

@@ -150,7 +150,7 @@ export default function MagazzinoScreen() {
                 <Button 
                   size="$3" 
                   circular 
-                  variant="outline" 
+                  variant="outlined" 
                   theme="destructive"
                   icon={<ArrowDownRight size={18} />} 
                   onPress={() => handleMovement('out', i.id)} 
@@ -206,7 +206,7 @@ export default function MagazzinoScreen() {
                       <XStack gap="$2" alignItems="center">
                         <Ionicons name="time-outline" size={12} color="#94a3b8" />
                         <SizableText size="$1" color="$color10">
-                          Scade: {l.expiryDate || l.expiry_date ? new Date(l.expiryDate || l.expiry_date).toLocaleDateString() : 'N/D'}
+                          Scade: {(l.expiryDate || l.expiry_date) ? new Date(l.expiryDate || l.expiry_date || '').toLocaleDateString() : 'N/D'}
                         </SizableText>
                       </XStack>
                     </YStack>
@@ -223,7 +223,7 @@ export default function MagazzinoScreen() {
             
             <Button 
               size="$2" 
-              variant="outline" 
+              variant="outlined" 
               marginTop="$2"
               onPress={() => router.push('/magazzino/lotti')}
             >
@@ -250,21 +250,36 @@ export default function MagazzinoScreen() {
           
           <YStack flex={1}>
             <XStack justifyContent="space-between">
-              <SizableText fontWeight="700" size="$3">{m.ingredientName}</SizableText>
+              <SizableText fontWeight="700" size="$3" flexShrink={1} numberOfLines={1}>
+                {m.ingredientName}
+              </SizableText>
               <SizableText fontWeight="800" color={isLoad ? '$green10' : '$red10'}>
                 {isLoad ? '+' : '-'}{m.quantity} {m.unit}
               </SizableText>
             </XStack>
             
-            <XStack justifyContent="space-between" marginTop="$1">
-              <XStack gap="$2" alignItems="center">
+            <XStack marginTop="$1">
+              <XStack gap="$2" alignItems="center" flexWrap="wrap">
                 <Badge size="$1" theme="alt">Lotto: {m.lotCode || m.lot_code || 'N/D'}</Badge>
-                {m.referral && <SizableText size="$1" color="$color9">{m.referral}</SizableText>}
+                {m.referral && (
+                  <SizableText
+                    size="$1"
+                    color="$color9"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={{ flexShrink: 1, minWidth: 0 }}
+                  >
+                    {m.referral}
+                  </SizableText>
+                )}
               </XStack>
+            </XStack>
+            <XStack gap="$2" alignItems="center">
+                <Ionicons name="calendar-outline" size={12} color="#94a3b8" />
               <SizableText size="$1" color="$color10">
                 {new Date(m.movedAt || m.moved_at).toLocaleDateString('it-IT', { hour: '2-digit', minute: '2-digit' })}
               </SizableText>
-            </XStack>
+              </XStack>
           </YStack>
         </XStack>
       </Card>
@@ -288,7 +303,7 @@ export default function MagazzinoScreen() {
             <SizableText size="$6" fontWeight="800">Magazzino</SizableText>
           </XStack>
           <XStack gap="$2">
-            <Button size="$3" variant="outline" icon={<Ionicons name="document-text-outline" size={16} color="#94a3b8" />} onPress={handleExportStock}>
+            <Button size="$3" variant="outlined" icon={<Ionicons name="document-text-outline" size={16} color="#94a3b8" />} onPress={handleExportStock}>
               Esporta
             </Button>
             <Button size="$3" theme="active" icon={<History size={16} />} onPress={() => router.push('/magazzino/lotti')}>
@@ -362,7 +377,7 @@ export default function MagazzinoScreen() {
         <Button 
           flex={1} 
           size="$5" 
-          variant="outline" 
+          variant="outlined" 
           theme="destructive" 
           icon={<ArrowDownRight size={20} />} 
           onPress={() => handleMovement('out')}

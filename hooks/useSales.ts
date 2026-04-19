@@ -20,11 +20,11 @@ export function useSales() {
     queryKey: ['sales'],
     queryFn: async () => {
       try {
-        const data = await blink.db.amelieSale.list({
+        const data = await (blink.db as any).amelieSale.list({
           orderBy: { sold_at: 'desc' }
         }) as any[];
         
-        const products = await blink.db.amelieProduct.list() as any[];
+        const products = await (blink.db as any).amelieProduct.list() as any[];
 
         return data.map(s => ({
           ...s,
@@ -47,7 +47,7 @@ export function useSales() {
     mutationFn: async (newSale: Omit<Sale, 'id' | 'soldAt'>) => {
       const id = `sale_${Date.now()}`;
       const soldAt = new Date().toISOString();
-      return await blink.db.amelieSale.create({
+      return await (blink.db as any).amelieSale.create({
         id,
         ...newSale,
         product_id: newSale.productId,

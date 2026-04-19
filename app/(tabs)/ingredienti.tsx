@@ -49,7 +49,7 @@ export default function IngredientiScreen() {
   
   const showToast = (title: string, options: any) => {
     if (!toastContext) return
-    const toastFn = typeof toastContext === 'function' ? toastContext : (toastContext.toast || toastContext.show)
+    const toastFn = typeof toastContext === 'function' ? toastContext : (toastContext.show || toastContext.show)
     if (typeof toastFn === 'function') {
       toastFn(title, options)
     } else {
@@ -96,7 +96,8 @@ export default function IngredientiScreen() {
     })
   }, [ingredients, search, categoryFilter, conservationFilter])
 
-  const handleDelete = async (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string, event?: any) => {
+    event?.stopPropagation()
     if (!isAdmin) return
 
     const confirmDelete = () => {
@@ -171,7 +172,7 @@ export default function IngredientiScreen() {
                   {ing.name || 'Senza Nome'}
                 </SizableText>
                 {isLow && (
-                  <Badge size="$1" theme="destructive" borderRadius="$full">
+                  <Badge variant="error">
                     SOTTO SCORTA
                   </Badge>
                 )}
@@ -199,8 +200,8 @@ export default function IngredientiScreen() {
                     circular
                     theme="destructive"
                     icon={<Trash2 size={16} color="$red8" />}
-                    onPress={() => {
-                      handleDelete(ing.id, ing.name)
+                    onPress={(event) => {
+                      handleDelete(ing.id, ing.name, event)
                     }}
                     disabled={deleteIngredient.isPending}
                   />
@@ -251,10 +252,7 @@ export default function IngredientiScreen() {
                   {allergens.map((a, idx) => (
                     <Badge 
                       key={idx} 
-                      variant="outline" 
-                      size="$1" 
-                      backgroundColor="$orange2" 
-                      borderColor="$orange5"
+                      variant="default"
                     >
                       <SizableText size="$1" color="$orange10" fontWeight="700">{a}</SizableText>
                     </Badge>
@@ -295,7 +293,7 @@ export default function IngredientiScreen() {
             <H3 color="$color12" fontWeight="800">Ingredienti</H3>
           </XStack>
           <XStack gap="$2">
-            <Button size="$3" variant="outline" icon={<Download size={16} color="#94a3b8" />} onPress={handleExport}>
+            <Button size="$3" variant="outlined" icon={<Download size={16} color="#94a3b8" />} onPress={handleExport}>
               Export
             </Button>
             {isAdmin && (

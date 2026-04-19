@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { blink } from '../lib/blink'
 import { AmelieUser } from '../lib/auth'
+
+const AUTH_KEY = 'amelie_user'
 
 interface AuthContextValue {
   user: AmelieUser | null
@@ -33,7 +36,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUser(null)
       }
-      
       if (!state.isLoading) {
         setIsLoading(false)
       }
@@ -43,7 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = async (u: AmelieUser) => {
-    // This is now handled by onAuthStateChanged after blink.auth.signInWithEmail
     setUser(u)
   }
 

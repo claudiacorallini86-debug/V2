@@ -25,7 +25,7 @@ export default function CambiaPasswordScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { updateUser } = useUsers();
-  const { toast } = useBlinkToast();
+  const { show } = useBlinkToast();
 
   const [form, setForm] = useState({
     currentPassword: '',
@@ -51,7 +51,7 @@ export default function CambiaPasswordScreen() {
         password: form.newPassword,
       });
       
-      toast('Successo', { message: 'Password aggiornata correttamente.', variant: 'success' });
+      show('Password aggiornata correttamente.', { variant: 'success' });
       router.back();
     } catch (error: any) {
       Alert.alert('Errore', error.message || 'Si è verificato un errore durante il cambio password.');

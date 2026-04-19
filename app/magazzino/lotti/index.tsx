@@ -11,9 +11,9 @@ import {
   Theme,
   Separator,
   Input,
-  BlinkSelect,
   useBlinkToast,
 } from '@blinkdotnew/mobile-ui';
+import {InlineSelect} from '@/components/common/InlineSelect';
 import { AppHeader } from '@/components/AppHeader';
 import { useIngredients, IngredientLot } from '@/hooks/useIngredients';
 import { useRouter } from 'expo-router';
@@ -64,14 +64,14 @@ export default function LottiIngredientiScreen() {
     const expiry = lot.expiryDate ? new Date(lot.expiryDate) : null;
     
     if (lot.status === 'active' && expiry && expiry < now) {
-      return <Badge theme="destructive" size="$1">SCADUTO</Badge>;
+      return <Badge variant='warning'>SCADUTO</Badge>;
     }
 
     switch (lot.status) {
-      case 'active': return <Badge theme="success" size="$1">ATTIVO</Badge>;
-      case 'exhausted': return <Badge theme="alt" size="$1">ESAURITO</Badge>;
-      case 'expired': return <Badge theme="destructive" size="$1">SCADUTO</Badge>;
-      case 'recalled': return <Badge theme="warning" size="$1">RITIRATO</Badge>;
+      case 'active': return <Badge variant="success">ATTIVO</Badge>;
+      case 'exhausted': return <Badge variant="info">ESAURITO</Badge>;
+      case 'expired': return <Badge variant="error">SCADUTO</Badge>;
+      case 'recalled': return <Badge variant="warning">RITIRATO</Badge>;
       default: return null;
     }
   };
@@ -85,10 +85,10 @@ export default function LottiIngredientiScreen() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays < 0) {
-      return <Badge theme="destructive" size="$1">SCADUTO</Badge>;
+      return <Badge variant="error">SCADUTO</Badge>;
     }
     if (diffDays <= 3) {
-      return <Badge theme="warning" size="$1">SCADE TRA {diffDays} GG</Badge>;
+      return <Badge variant="warning">SCADE TRA {diffDays} GG</Badge>;
     }
     return null;
   };
@@ -132,7 +132,7 @@ export default function LottiIngredientiScreen() {
             </YStack>
             <YStack flex={1}>
               <SizableText size="$1" color="$color9" fontWeight="600">CONSERVAZIONE</SizableText>
-              <Badge size="$1" variant="outline" theme="alt" alignSelf="flex-start" textTransform="uppercase">
+              <Badge variant="info">
                 {l.conservation}
               </Badge>
             </YStack>
@@ -155,7 +155,7 @@ export default function LottiIngredientiScreen() {
                   color={l.status === 'expired' ? '#ef4444' : '#94a3b8'} 
                 />
                 <SizableText size="$2" color={l.status === 'expired' ? '$red10' : '$color12'}>
-                  {formatDate(l.expiryDate)}
+                  {l.expiryDate || null}
                 </SizableText>
               </XStack>
             </YStack>
@@ -214,8 +214,7 @@ export default function LottiIngredientiScreen() {
             <XStack gap="$2">
               <YStack flex={1} gap="$1">
                 <SizableText size="$1" fontWeight="700">Stato</SizableText>
-                <BlinkSelect 
-                  size="$3"
+                <InlineSelect 
                   items={STATUS_OPTIONS}
                   value={statusFilter}
                   onValueChange={setStatusFilter}
@@ -223,8 +222,7 @@ export default function LottiIngredientiScreen() {
               </YStack>
               <YStack flex={1} gap="$1">
                 <SizableText size="$1" fontWeight="700">Conservazione</SizableText>
-                <BlinkSelect 
-                  size="$3"
+                <InlineSelect 
                   items={CONSERVATION_OPTIONS}
                   value={consFilter}
                   onValueChange={setConservationFilter}

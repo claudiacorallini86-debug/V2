@@ -7,23 +7,31 @@ import {
   Card,
   Separator,
   Input,
-  BlinkSelect,
   useBlinkToast,
   Badge,
   Spinner,
 } from '@blinkdotnew/mobile-ui';
+import { InlineSelect } from '@/components/common/InlineSelect';
 import { useHaccp, TemperatureLog } from '@/hooks/useHaccp';
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, Alert, View, TouchableOpacity } from 'react-native';
+import { ScrollView, Alert, Platform, View, TouchableOpacity } from 'react-native';
 import { formatDate } from '@/lib/date';
 import { useAuth } from '@/context/AuthContext';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 
 export function TemperatureTab() {
   const { equipment, temperatureLogs, addTemperatureLog, createEquipment, deleteEquipment, isLoading } = useHaccp();
-  const { toast } = useBlinkToast();
+  const { show } = useBlinkToast();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+
+  const showAlert = (title: string, message?: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(message ? `${title}\n${message}` : title);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
 
   // Form rilevano
   const [form, setForm] = useState({ equipmentId: '', temperature: '', note: '' });
@@ -60,12 +68,12 @@ export function TemperatureTab() {
 
   const handleAddLog = async () => {
     if (!form.equipmentId || !form.temperature) {
-      Alert.alert('Errore', 'Seleziona un\'attrezzatura e inserisci la temperatura.');
+      showAlert('Errore', 'Seleziona un\'attrezzatura e inserisci la temperatura.');
       return;
     }
     const temp = parseFloat(form.temperature.replace(',', '.'));
     if (isNaN(temp)) {
-      Alert.alert('Errore', 'Inserisci una temperatura valida.');
+      showAlert('Errore', 'Inserisci una temperatura valida.');
       return;
     }
     const outOfRange = selectedEquipment
@@ -79,58 +87,62 @@ export function TemperatureTab() {
         note: form.note.trim() || undefined,
       });
       if (outOfRange) {
-        Alert.alert(
+        showAlert(
           '⚠️ ATTENZIONE',
           `Temperatura FUORI RANGE per ${selectedEquipment?.name}!\nRange previsto: ${selectedEquipment?.minTemp}°C / ${selectedEquipment?.maxTemp}°C`
         );
       }
-      toast('Rilevazione salvata', { variant: 'success' });
+      show('Rilevazione salvata', { variant: 'success' });
       setForm({ equipmentId: '', temperature: '', note: '' });
     } catch (error: any) {
-      Alert.alert('Errore', error.message || 'Errore durante il salvataggio.');
+      showAlert('Errore', error.message || 'Errore durante il salvataggio.');
     }
   };
 
   const handleAddEquipment = async () => {
     if (!newEq.name.trim() || newEq.min === '' || newEq.max === '') {
-      Alert.alert('Errore', 'Compila nome, temperatura minima e massima.');
+      show('Errore: Compila nome, temperatura minima e massima.', { variant: 'error' });
       return;
     }
     const min = parseFloat(newEq.min.replace(',', '.'));
     const max = parseFloat(newEq.max.replace(',', '.'));
     if (isNaN(min) || isNaN(max) || min >= max) {
-      Alert.alert('Errore', 'Soglie non valide. Min deve essere inferiore a Max.');
+      show('Errore: Soglie non valide. Min deve essere inferiore a Max.', { variant: 'error' });
       return;
     }
     try {
       await createEquipment.mutateAsync({ name: newEq.name.trim(), minTemp: min, maxTemp: max });
-      toast('Attrezzatura aggiunta', { variant: 'success' });
+      show('Attrezzatura aggiunta', { variant: 'success' });
       setNewEq({ name: '', min: '', max: '' });
     } catch (e: any) {
-      Alert.alert('Errore', e.message || 'Impossibile aggiungere l\'attrezzatura.');
+      show(`Errore: ${e.message} Impossibile aggiungere l'attrezzatura.'}`, { variant: 'error' });
     }
   };
 
   const handleDeleteEquipment = (id: string, name: string) => {
-    Alert.alert(
-      'Conferma eliminazione',
-      `Sei sicuro di voler eliminare ${name}? Questa azione è irreversibile.`,
-      [
-        { text: 'Annulla', style: 'cancel' },
-        {
-          text: 'Elimina',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteEquipment.mutateAsync(id);
-              toast('Attrezzatura eliminata', { variant: 'success' });
-            } catch (e: any) {
-              Alert.alert('Errore', e.message || 'Impossibile eliminare l\'attrezzatura.');
-            }
-          },
-        },
-      ]
-    );
+    const doDelete = async () => {
+      try {
+        await deleteEquipment.mutateAsync(id);
+        show('Attrezzatura eliminata', { variant: 'success' });
+      } catch (e: any) {
+        show(`Errore: ${e.message} Impossibile eliminare l'attrezzatura.`, { variant: 'error' });
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Sei sicuro di voler eliminare ${name}? Questa azione è irreversibile.`)) {
+        doDelete();
+      }
+    } else {
+      Alert.alert(
+        'Conferma eliminazione',
+        `Sei sicuro di voler eliminare ${name}? Questa azione è irreversibile.`,
+        [
+          { text: 'Annulla', style: 'cancel' },
+          { text: 'Elimina', style: 'destructive', onPress: doDelete },
+        ]
+      );
+    }
   };
 
   if (isLoading) return <XStack padding="$10" justifyContent="center"><Spinner /></XStack>;
@@ -182,7 +194,7 @@ export function TemperatureTab() {
 
           <YStack gap="$2">
             <SizableText size="$2" color="$color11" fontWeight="600">Attrezzatura *</SizableText>
-            <BlinkSelect
+            <InlineSelect
               items={equipment.map(e => ({ label: e.name, value: e.id }))}
               value={form.equipmentId}
               onValueChange={val => setForm({ ...form, equipmentId: val })}
@@ -190,8 +202,8 @@ export function TemperatureTab() {
             />
             {selectedEquipment && (
               <XStack gap="$2" marginTop="$1">
-                <Badge size="$1" theme="alt">Min: {selectedEquipment.minTemp}°C</Badge>
-                <Badge size="$1" theme="alt">Max: {selectedEquipment.maxTemp}°C</Badge>
+                <Badge variant="info">Min: {selectedEquipment.minTemp}°C</Badge>
+                <Badge variant="info">Max: {selectedEquipment.maxTemp}°C</Badge>
               </XStack>
             )}
           </YStack>
@@ -237,7 +249,7 @@ export function TemperatureTab() {
         <YStack gap="$2">
           <XStack justifyContent="space-between" alignItems="center">
             <SizableText size="$4" fontWeight="800">Rilevazioni di Oggi</SizableText>
-            <Badge theme="alt">{dailyLogs.length}</Badge>
+            <Badge variant="info">{dailyLogs.length}</Badge>
           </XStack>
 
           {dailyLogs.length === 0 ? (

@@ -156,11 +156,15 @@ const styles = StyleSheet.create({
     backgroundColor: SURFACE,
     paddingTop: Platform.OS === 'ios' ? 48 : 32,
     paddingBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 16,
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '4px 0px 16px rgba(0, 0, 0, 0.4)' } as any)
+      : {
+          shadowColor: '#000',
+          shadowOffset: { width: 4, height: 0 },
+          shadowOpacity: 0.4,
+          shadowRadius: 16,
+          elevation: 16,
+        }),
   },
   brandRow: {
     flexDirection: 'row',

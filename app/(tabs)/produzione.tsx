@@ -18,7 +18,7 @@ import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { exportProductionListToPDF } from '@/lib/export';
 import { useSettings } from '@/hooks/useSettings';
 import { Ionicons } from '@expo/vector-icons';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 const Badge = ({ children, theme, variant }: any) => (
   <View style={{ 
@@ -78,7 +78,7 @@ export default function ProduzioneScreen() {
             <SizableText size="$6" fontWeight="800">Produzione</SizableText>
           </XStack>
           <XStack gap="$2">
-            <Button size="$3" variant="outline" icon={<Ionicons name="document-text-outline" size={16} color="#94a3b8" />} onPress={handleExport}>
+            <Button size="$3" variant="outlined" icon={<Ionicons name="document-text-outline" size={16} color="#94a3b8" />} onPress={handleExport}>
               Esporta
             </Button>
             <Button 

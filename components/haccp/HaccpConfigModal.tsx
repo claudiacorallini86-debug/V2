@@ -6,7 +6,6 @@ import {
   Button,
   Input,
   Label,
-  BlinkSelect,
   useBlinkToast,
   Separator,
   Theme,
@@ -24,7 +23,7 @@ interface Props {
 
 export function HaccpConfigModal({ isOpen, onClose }: Props) {
   const { equipment, createEquipment, isLoading } = useHaccp();
-  const { toast } = useBlinkToast();
+  const { show } = useBlinkToast();
 
   const [newEq, setNewEq] = useState({ name: '', min: '', max: '' });
 
@@ -36,10 +35,10 @@ export function HaccpConfigModal({ isOpen, onClose }: Props) {
         minTemp: parseFloat(newEq.min),
         maxTemp: parseFloat(newEq.max)
       });
-      toast('Attrezzatura aggiunta');
+      show('Attrezzatura aggiunta', { variant: 'success' });
       setNewEq({ name: '', min: '', max: '' });
     } catch (e) {
-      toast('Errore', { variant: 'error' });
+      show('Errore', { variant: 'error' });
     }
   };
 

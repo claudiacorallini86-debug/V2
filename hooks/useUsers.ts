@@ -19,7 +19,7 @@ export function useUsers() {
   const usersQuery = useQuery({
     queryKey: ['app-users'],
     queryFn: async () => {
-      const data = await blink.db.amelieUser.list() as any[];
+      const data = await (blink.db as any).amelieUser.list() as any[];
       return data.map(u => ({
         id: u.id,
         email: u.email,
@@ -34,7 +34,7 @@ export function useUsers() {
   const createUser = useMutation({
     mutationFn: async (data: { email: string, displayName: string, role: string, passwordHash: string }) => {
       const passwordHash = await hashPassword(data.passwordHash);
-      const res = await blink.db.amelieUser.create({
+      const res = await (blink.db as any).amelieUser.create({
         id: `u_${Date.now()}`,
         email: data.email,
         display_name: data.displayName,
@@ -58,7 +58,7 @@ export function useUsers() {
         updateData.password_hash = await hashPassword(data.password);
       }
       
-      const res = await blink.db.amelieUser.update(id, updateData);
+      const res = await (blink.db as any).amelieUser.update(id, updateData);
       await logAudit('Aggiornamento utente', 'Utente', id, null, { email: data.email });
       return res;
     },
@@ -67,8 +67,8 @@ export function useUsers() {
 
   const updateUserRole = useMutation({
     mutationFn: async ({ id, role }: { id: string, role: string }) => {
-      const userBefore = await blink.db.amelieUser.get(id);
-      const res = await blink.db.amelieUser.update(id, { role } as any);
+      const userBefore = await (blink.db as any).amelieUser.get(id);
+      const res = await (blink.db as any).amelieUser.update(id, { role } as any);
       await logAudit('Cambio ruolo', 'Utente', id, { role: userBefore?.role }, { role });
       return res;
     },
@@ -77,7 +77,7 @@ export function useUsers() {
 
   const toggleUserStatus = useMutation({
     mutationFn: async ({ id, active }: { id: string, active: boolean }) => {
-      const res = await blink.db.amelieUser.update(id, { active: active ? 1 : 0 } as any);
+      const res = await (blink.db as any).amelieUser.update(id, { active: active ? 1 : 0 } as any);
       await logAudit(active ? 'Riattivazione utente' : 'Disattivazione utente', 'Utente', id);
       return res;
     },
@@ -88,6 +88,7 @@ export function useUsers() {
     users: usersQuery.data || [],
     isLoading: usersQuery.isLoading,
     createUser,
+    updateUser,
     updateUserRole,
     toggleUserStatus,
   };
