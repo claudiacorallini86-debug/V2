@@ -137,6 +137,36 @@ export function useHaccp() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['haccp-temperature-logs'] })
   });
 
+  // Converte una stringa datetime (UTC o locale) nella data locale YYYY-MM-DD
+  const toLocalDate = (recordedAt: string): string => {
+    const d = new Date(recordedAt);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  // Data locale YYYY-MM-DD per oggi e ieri
+  const todayLocal = (): string => toLocalDate(new Date().toISOString());
+  const yesterdayLocal = (): string => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return toLocalDate(d.toISOString());
+  };
+
+  // Itera i giorni locali tra startDate (escluso) e endDate (incluso)
+  const iterLocalDays = (startDateStr: string, endDateStr: string): string[] => {
+    const days: string[] = [];
+    const cursor = new Date(startDateStr + 'T12:00:00'); // mezzogiorno locale evita DST edge
+    const end = new Date(endDateStr + 'T12:00:00');
+    cursor.setDate(cursor.getDate() + 1);
+    while (cursor <= end) {
+      days.push(toLocalDate(cursor.toISOString()));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return days;
+  };
+
   // Calcola preview dei giorni mancanti per TUTTE le attrezzature
   const computeFillPreview = async (): Promise<FillSummaryItem[]> => {
     const allLogs = await (blink.db as any).amelieHaccpTemperatureLog.list({
@@ -147,9 +177,7 @@ export function useHaccp() {
       equipmentName: (l.equipmentName || l.equipment_name) as string,
       temperature: Number(l.temperature),
       recordedAt: (l.recordedAt || l.recorded_at) as string,
-      outOfRange: Boolean(Number(l.outOfRange ?? l.out_of_range ?? 0)),
-      note: l.note as string | undefined,
-      autoFilled: Boolean(Number(l.autoFilled ?? l.auto_filled ?? 0)),
+      localDate: toLocalDate((l.recordedAt || l.recorded_at) as string),
     }));
 
     // Raggruppa per attrezzatura
@@ -159,31 +187,24 @@ export function useHaccp() {
       byEquipment[log.equipmentName].push(log);
     }
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(23, 59, 59, 999);
-
+    const ieri = yesterdayLocal();
     const preview: FillSummaryItem[] = [];
 
     for (const [equipmentName, logs] of Object.entries(byEquipment)) {
-      // logs è già ordinato desc, il primo è il più recente
-      const lastLog = logs[0];
-      const refDate = new Date(lastLog.recordedAt);
-      refDate.setHours(0, 0, 0, 0);
+      // logs ordinato desc → il primo è il più recente
+      const lastLocalDate = logs[0].localDate;
+      // Se l'ultimo record è già oggi o ieri non c'è nulla da fare
+      if (lastLocalDate >= ieri) continue;
 
-      const existingDatesForEq = new Set(logs.map(l => l.recordedAt.substring(0, 10)));
+      const existingDates = new Set(logs.map(l => l.localDate));
+      const missing = iterLocalDays(lastLocalDate, ieri).filter(d => !existingDates.has(d));
 
-      let missingCount = 0;
-      const cursor = new Date(refDate);
-      cursor.setDate(cursor.getDate() + 1);
-      while (cursor <= yesterday) {
-        const dateStr = cursor.toISOString().substring(0, 10);
-        if (!existingDatesForEq.has(dateStr)) missingCount++;
-        cursor.setDate(cursor.getDate() + 1);
-      }
-
-      if (missingCount > 0) {
-        preview.push({ equipmentName, filledCount: missingCount, refTemperature: lastLog.temperature });
+      if (missing.length > 0) {
+        preview.push({
+          equipmentName,
+          filledCount: missing.length,
+          refTemperature: logs[0].temperature,
+        });
       }
     }
 
@@ -192,7 +213,6 @@ export function useHaccp() {
 
   const fillMissingDays = useMutation({
     mutationFn: async (): Promise<FillSummaryItem[]> => {
-      // Recupera tutti i log dal DB
       const allLogs = await (blink.db as any).amelieHaccpTemperatureLog.list({
         orderBy: { recorded_at: 'desc' }
       }) as any[];
@@ -201,6 +221,7 @@ export function useHaccp() {
         equipmentName: (l.equipmentName || l.equipment_name) as string,
         temperature: Number(l.temperature),
         recordedAt: (l.recordedAt || l.recorded_at) as string,
+        localDate: toLocalDate((l.recordedAt || l.recorded_at) as string),
         outOfRange: Boolean(Number(l.outOfRange ?? l.out_of_range ?? 0)),
         note: l.note as string | undefined,
       }));
@@ -212,34 +233,17 @@ export function useHaccp() {
         byEquipment[log.equipmentName].push(log);
       }
 
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      yesterday.setHours(23, 59, 59, 999);
-
+      const ieri = yesterdayLocal();
       const allNewRecords: any[] = [];
       const summary: FillSummaryItem[] = [];
       let idCounter = 0;
 
       for (const [equipmentName, logs] of Object.entries(byEquipment)) {
         const lastLog = logs[0]; // più recente
-        const refDate = new Date(lastLog.recordedAt);
-        refDate.setHours(0, 0, 0, 0);
+        if (lastLog.localDate >= ieri) continue; // nulla da compilare
 
-        // Date già presenti per questa attrezzatura
-        const existingDatesForEq = new Set(logs.map(l => l.recordedAt.substring(0, 10)));
-
-        const timeSlot = lastLog.recordedAt.substring(11, 19) || '08:00:00';
-        const missingDates: string[] = [];
-
-        const cursor = new Date(refDate);
-        cursor.setDate(cursor.getDate() + 1);
-        while (cursor <= yesterday) {
-          const dateStr = cursor.toISOString().substring(0, 10);
-          if (!existingDatesForEq.has(dateStr)) {
-            missingDates.push(dateStr);
-          }
-          cursor.setDate(cursor.getDate() + 1);
-        }
+        const existingDates = new Set(logs.map(l => l.localDate));
+        const missingDates = iterLocalDays(lastLog.localDate, ieri).filter(d => !existingDates.has(d));
 
         if (missingDates.length > 0) {
           missingDates.forEach(dateStr => {
@@ -249,7 +253,8 @@ export function useHaccp() {
               temperature: lastLog.temperature,
               out_of_range: lastLog.outOfRange ? 1 : 0,
               note: lastLog.note || null,
-              recorded_at: `${dateStr}T${timeSlot}`,
+              // Salva come data locale a mezzanotte per evitare ambiguità fuso
+              recorded_at: `${dateStr}T08:00:00`,
               auto_filled: 1
             });
           });
