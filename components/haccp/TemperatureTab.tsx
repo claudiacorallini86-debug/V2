@@ -14,7 +14,15 @@ import {
 import { InlineSelect } from '@/components/common/InlineSelect';
 import { useHaccp, TemperatureLog, FillSummaryItem } from '@/hooks/useHaccp';
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, Alert, Platform, View, TouchableOpacity } from 'react-native';
+import {
+  ScrollView,
+  Alert,
+  Platform,
+  View,
+  TouchableOpacity,
+  FlatList,
+  useWindowDimensions,
+} from 'react-native';
 import { formatDate } from '@/lib/date';
 import { useAuth } from '@/context/AuthContext';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
@@ -23,6 +31,8 @@ export function TemperatureTab() {
   const { equipment, temperatureLogs, addTemperatureLog, fillMissingDays, computeFillPreview, createEquipment, deleteEquipment, isLoading } = useHaccp();
   const { show } = useBlinkToast();
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const isWide = width >= 640;
 
   const showAlert = (title: string, message?: string) => {
     if (Platform.OS === 'web') {
@@ -69,6 +79,8 @@ export function TemperatureTab() {
       ),
     [temperatureLogs, search]
   );
+
+  const historySliced = useMemo(() => filteredHistory.slice(0, 50), [filteredHistory]);
 
   // Totale giorni che verranno compilati
   const totalMissingDays = useMemo(
@@ -155,7 +167,7 @@ export function TemperatureTab() {
       show('Attrezzatura aggiunta', { variant: 'success' });
       setNewEq({ name: '', min: '', max: '' });
     } catch (e: any) {
-      show(`Errore: ${e.message} Impossibile aggiungere l'attrezzatura.'}`, { variant: 'error' });
+      show(`Errore: ${e.message} Impossibile aggiungere l'attrezzatura.`, { variant: 'error' });
     }
   };
 
@@ -188,16 +200,21 @@ export function TemperatureTab() {
   if (isLoading) return <XStack padding="$10" justifyContent="center"><Spinner /></XStack>;
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false}>
+    // View root con flex:1 — contiene LoadingOverlay, dialog e ScrollView
+    <View style={{ flex: 1 }}>
       <LoadingOverlay
         visible={addTemperatureLog.isPending || createEquipment.isPending || deleteEquipment.isPending || isFillLoading}
         message="Operazione in corso..."
       />
 
-      {/* Dialog conferma compilazione giorni mancanti */}
+      {/* Dialog conferma compilazione giorni mancanti — FUORI dalla ScrollView */}
       {fillPreview && (
         <View style={{
-          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.65)',
           zIndex: 999,
           justifyContent: 'center',
@@ -302,299 +319,340 @@ export function TemperatureTab() {
         </View>
       )}
 
-      <YStack padding="$4" gap="$4" paddingBottom="$10">
+      {/* ScrollView con flex:1 per non sfondare fuori schermo */}
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <YStack padding="$4" gap="$4" paddingBottom="$10">
 
-        {/* Banner fuori range */}
-        {outOfRangeLogs.length > 0 && (
-          <YStack
-            padding="$3"
-            backgroundColor="$red2"
-            borderRadius="$4"
-            borderWidth={2}
-            borderColor="$red8"
-            gap="$2"
-          >
-            <XStack gap="$2" alignItems="center">
-              <Ionicons name="alert-circle" size={20} color="#ef4444" />
-              <SizableText size="$3" fontWeight="800" color="$red10">
-                ATTENZIONE: Temperatura fuori range!
-              </SizableText>
-            </XStack>
-            <YStack gap="$1">
-              {outOfRangeLogs.map(log => (
-                <SizableText key={log.id} size="$2" color="$red11">
-                  • {log.equipmentName}: {log.temperature}°C alle{' '}
-                  {new Date(log.recordedAt).toLocaleTimeString('it-IT', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+          {/* Banner fuori range */}
+          {outOfRangeLogs.length > 0 && (
+            <YStack
+              padding="$3"
+              backgroundColor="$red2"
+              borderRadius="$4"
+              borderWidth={2}
+              borderColor="$red8"
+              gap="$2"
+            >
+              <XStack gap="$2" alignItems="center">
+                <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                <SizableText size="$3" fontWeight="800" color="$red10">
+                  ATTENZIONE: Temperatura fuori range!
                 </SizableText>
-              ))}
-            </YStack>
-          </YStack>
-        )}
-
-        {/* Pulsante Compila Giorni Mancanti */}
-        <TouchableOpacity
-          onPress={handlePreviewFill}
-          disabled={isPreviewLoading}
-          activeOpacity={0.8}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            backgroundColor: '#1a2a3f',
-            borderWidth: 1.5,
-            borderColor: '#4A90D9',
-            borderRadius: 12,
-            paddingVertical: 12,
-            paddingHorizontal: 16,
-            opacity: isPreviewLoading ? 0.7 : 1,
-          }}
-        >
-          {isPreviewLoading
-            ? <Spinner size="small" color="#4A90D9" />
-            : <Ionicons name="calendar-outline" size={18} color="#4A90D9" />
-          }
-          <SizableText size="$3" fontWeight="700" color="#4A90D9">
-            {isPreviewLoading ? 'Analisi in corso...' : 'Compila Giorni Mancanti'}
-          </SizableText>
-          <View style={{
-            backgroundColor: '#0f1823',
-            borderRadius: 20,
-            paddingHorizontal: 8,
-            paddingVertical: 2,
-            borderWidth: 1,
-            borderColor: '#2d3a50',
-          }}>
-            <SizableText size="$1" color="$color10">
-              tutte le attrezzature
-            </SizableText>
-          </View>
-        </TouchableOpacity>
-
-        {/* Form nuova rilevazione */}
-        <Card bordered padding="$4" backgroundColor="$color1" gap="$4">
-          <XStack gap="$2" alignItems="center">
-            <Ionicons name="thermometer-outline" size={20} color="#4A90D9" />
-            <SizableText size="$4" fontWeight="800">Nuova Rilevazione</SizableText>
-          </XStack>
-
-          <YStack gap="$2">
-            <SizableText size="$2" color="$color11" fontWeight="600">Attrezzatura *</SizableText>
-            <InlineSelect
-              items={equipment.map(e => ({ label: e.name, value: e.id }))}
-              value={form.equipmentId}
-              onValueChange={val => setForm({ ...form, equipmentId: val })}
-              placeholder="Seleziona attrezzatura..."
-            />
-            {selectedEquipment && (
-              <XStack gap="$2" marginTop="$1">
-                <Badge variant="info">Min: {selectedEquipment.minTemp}°C</Badge>
-                <Badge variant="info">Max: {selectedEquipment.maxTemp}°C</Badge>
               </XStack>
-            )}
-          </YStack>
-
-          <XStack gap="$3">
-            <YStack flex={1} gap="$2">
-              <SizableText size="$2" color="$color11" fontWeight="600">Temperatura (°C) *</SizableText>
-              <Input
-                keyboardType="numeric"
-                value={form.temperature}
-                onChangeText={t => setForm({ ...form, temperature: t })}
-                placeholder="es. 3.5"
-              />
+              <YStack gap="$1">
+                {outOfRangeLogs.map(log => (
+                  <SizableText key={log.id} size="$2" color="$red11">
+                    • {log.equipmentName}: {log.temperature}°C alle{' '}
+                    {new Date(log.recordedAt).toLocaleTimeString('it-IT', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </SizableText>
+                ))}
+              </YStack>
             </YStack>
-            <YStack flex={2} gap="$2">
-              <SizableText size="$2" color="$color11" fontWeight="600">Note (opzionali)</SizableText>
-              <Input
-                value={form.note}
-                onChangeText={t => setForm({ ...form, note: t })}
-                placeholder="es. Dopo sbrinamento"
-              />
-            </YStack>
-          </XStack>
-
-          <Button
-            theme="active"
-            onPress={handleAddLog}
-            disabled={addTemperatureLog.isPending || !form.equipmentId || !form.temperature}
-            opacity={!form.equipmentId || !form.temperature ? 0.6 : 1}
-            icon={
-              addTemperatureLog.isPending ? (
-                <Spinner color="white" />
-              ) : (
-                <Ionicons name="add" size={18} color="white" />
-              )
-            }
-          >
-            Registra Temperatura
-          </Button>
-        </Card>
-
-        {/* Rilevazioni di oggi */}
-        <YStack gap="$2">
-          <XStack justifyContent="space-between" alignItems="center">
-            <SizableText size="$4" fontWeight="800">Rilevazioni di Oggi</SizableText>
-            <Badge variant="info">{dailyLogs.length}</Badge>
-          </XStack>
-
-          {dailyLogs.length === 0 ? (
-            <Card bordered padding="$4" alignItems="center" backgroundColor="$color2">
-              <SizableText color="$color10">Nessuna rilevazione per oggi</SizableText>
-            </Card>
-          ) : (
-            dailyLogs.map(log => <TemperatureLogCard key={log.id} log={log} />)
           )}
-        </YStack>
 
-        <Separator />
-
-        {/* Gestione attrezzature */}
-        <TouchableOpacity
-          onPress={() => setShowEquipmentMgmt(!showEquipmentMgmt)}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-        >
-          <XStack gap="$2" alignItems="center">
-            <Ionicons name="settings-outline" size={18} color="#4A90D9" />
-            <SizableText size="$3" fontWeight="700" color="$active">
-              Gestione Attrezzature
+          {/* Pulsante Compila Giorni Mancanti */}
+          <TouchableOpacity
+            onPress={handlePreviewFill}
+            disabled={isPreviewLoading}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              backgroundColor: '#1a2a3f',
+              borderWidth: 1.5,
+              borderColor: '#4A90D9',
+              borderRadius: 12,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              opacity: isPreviewLoading ? 0.7 : 1,
+            }}
+          >
+            {isPreviewLoading
+              ? <Spinner size="small" color="#4A90D9" />
+              : <Ionicons name="calendar-outline" size={18} color="#4A90D9" />
+            }
+            <SizableText size="$3" fontWeight="700" color="#4A90D9">
+              {isPreviewLoading ? 'Analisi in corso...' : 'Compila Giorni Mancanti'}
             </SizableText>
-          </XStack>
-          <Ionicons
-            name={showEquipmentMgmt ? 'chevron-up' : 'chevron-down'}
-            size={18}
-            color="#94a3b8"
-          />
-        </TouchableOpacity>
+            <View style={{
+              backgroundColor: '#0f1823',
+              borderRadius: 20,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderWidth: 1,
+              borderColor: '#2d3a50',
+            }}>
+              <SizableText size="$1" color="$color10">
+                tutte le attrezzature
+              </SizableText>
+            </View>
+          </TouchableOpacity>
 
-        {showEquipmentMgmt && (
-          <YStack gap="$3">
+          {/* Form nuova rilevazione */}
+          <Card bordered padding="$4" backgroundColor="$color1" gap="$4">
+            <XStack gap="$2" alignItems="center">
+              <Ionicons name="thermometer-outline" size={20} color="#4A90D9" />
+              <SizableText size="$4" fontWeight="800">Nuova Rilevazione</SizableText>
+            </XStack>
+
             <YStack gap="$2">
-              {equipment.map(e => (
-                <XStack
-                  key={e.id}
-                  padding="$3"
-                  backgroundColor="$color1"
-                  borderRadius="$4"
-                  borderWidth={1}
-                  borderColor="$color4"
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <YStack>
-                    <SizableText fontWeight="700">{e.name}</SizableText>
-                    <SizableText size="$1" color="$color10">
-                      Range: {e.minTemp}°C — {e.maxTemp}°C
-                    </SizableText>
-                  </YStack>
-                  <TouchableOpacity
-                    onPress={() => handleDeleteEquipment(e.id, e.name)}
-                    style={{ padding: 6 }}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  </TouchableOpacity>
+              <SizableText size="$2" color="$color11" fontWeight="600">Attrezzatura *</SizableText>
+              <InlineSelect
+                items={equipment.map(e => ({ label: e.name, value: e.id }))}
+                value={form.equipmentId}
+                onValueChange={val => setForm({ ...form, equipmentId: val })}
+                placeholder="Seleziona attrezzatura..."
+              />
+              {selectedEquipment && (
+                <XStack gap="$2" marginTop="$1">
+                  <Badge variant="info">Min: {selectedEquipment.minTemp}°C</Badge>
+                  <Badge variant="info">Max: {selectedEquipment.maxTemp}°C</Badge>
                 </XStack>
-              ))}
-              {equipment.length === 0 && (
-                <SizableText color="$color10" textAlign="center">Nessuna attrezzatura configurata</SizableText>
               )}
             </YStack>
 
-            <Card bordered padding="$4" backgroundColor="$color2" gap="$3">
-              <SizableText size="$3" fontWeight="700">Aggiungi Attrezzatura</SizableText>
-              <Input
-                value={newEq.name}
-                onChangeText={t => setNewEq({ ...newEq, name: t })}
-                placeholder="Nome (es. Frigo 3, Abbattitore 2)"
-              />
-              <XStack gap="$2">
+            <XStack gap="$3">
+              <YStack flex={1} gap="$2">
+                <SizableText size="$2" color="$color11" fontWeight="600">Temperatura (°C) *</SizableText>
                 <Input
-                  flex={1}
                   keyboardType="numeric"
-                  value={newEq.min}
-                  onChangeText={t => setNewEq({ ...newEq, min: t })}
-                  placeholder="Min °C"
+                  value={form.temperature}
+                  onChangeText={t => setForm({ ...form, temperature: t })}
+                  placeholder="es. 3.5"
                 />
+              </YStack>
+              <YStack flex={2} gap="$2">
+                <SizableText size="$2" color="$color11" fontWeight="600">Note (opzionali)</SizableText>
                 <Input
-                  flex={1}
-                  keyboardType="numeric"
-                  value={newEq.max}
-                  onChangeText={t => setNewEq({ ...newEq, max: t })}
-                  placeholder="Max °C"
+                  value={form.note}
+                  onChangeText={t => setForm({ ...form, note: t })}
+                  placeholder="es. Dopo sbrinamento"
                 />
-              </XStack>
-              <Button
-                theme="active"
-                onPress={handleAddEquipment}
-                disabled={createEquipment.isPending}
-                icon={
-                  createEquipment.isPending ? (
-                    <Spinner color="white" />
-                  ) : (
-                    <Ionicons name="add-circle-outline" size={18} color="white" />
-                  )
-                }
-              >
-                Aggiungi
-              </Button>
-            </Card>
-          </YStack>
-        )}
+              </YStack>
+            </XStack>
 
-        <Separator />
+            <Button
+              theme="active"
+              onPress={handleAddLog}
+              disabled={addTemperatureLog.isPending || !form.equipmentId || !form.temperature}
+              opacity={!form.equipmentId || !form.temperature ? 0.6 : 1}
+              icon={
+                addTemperatureLog.isPending ? (
+                  <Spinner color="white" />
+                ) : (
+                  <Ionicons name="add" size={18} color="white" />
+                )
+              }
+            >
+              Registra Temperatura
+            </Button>
+          </Card>
 
-        {/* Storico */}
-        <TouchableOpacity
-          onPress={() => setShowHistory(!showHistory)}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-        >
-          <XStack gap="$2" alignItems="center">
-            <Ionicons name="time-outline" size={18} color="#94a3b8" />
-            <SizableText size="$3" fontWeight="600" color="$color11">
-              {showHistory ? 'Nascondi Storico' : 'Visualizza Storico Completo'}
-            </SizableText>
-          </XStack>
-          <Ionicons name={showHistory ? 'chevron-up' : 'chevron-down'} size={18} color="#94a3b8" />
-        </TouchableOpacity>
+          {/* Rilevazioni di oggi */}
+          <YStack gap="$2">
+            <XStack justifyContent="space-between" alignItems="center">
+              <SizableText size="$4" fontWeight="800">Rilevazioni di Oggi</SizableText>
+              <Badge variant="info">{dailyLogs.length}</Badge>
+            </XStack>
 
-        {showHistory && (
-          <YStack gap="$3">
-            <Input
-              value={search}
-              onChangeText={t => setSearch(t)}
-              placeholder="Filtra per attrezzatura o note..."
-              backgroundColor="$color1"
-            />
-            {filteredHistory.slice(0, 50).map(log => (
-              <TemperatureLogCard key={log.id} log={log} />
-            ))}
-            {filteredHistory.length === 0 && (
+            {dailyLogs.length === 0 ? (
               <Card bordered padding="$4" alignItems="center" backgroundColor="$color2">
-                <SizableText color="$color10">Nessuna rilevazione trovata</SizableText>
+                <SizableText color="$color10">Nessuna rilevazione per oggi</SizableText>
               </Card>
+            ) : isWide ? (
+              <FlatList
+                data={dailyLogs}
+                keyExtractor={item => item.id}
+                numColumns={2}
+                scrollEnabled={false}
+                columnWrapperStyle={{ gap: 8 }}
+                renderItem={({ item }) => (
+                  <View style={{ flex: 1, marginVertical: 4 }}>
+                    <TemperatureLogCard log={item} compact />
+                  </View>
+                )}
+              />
+            ) : (
+              <YStack gap="$2">
+                {dailyLogs.map(log => (
+                  <TemperatureLogCard key={log.id} log={log} />
+                ))}
+              </YStack>
             )}
           </YStack>
-        )}
-      </YStack>
-    </ScrollView>
+
+          <Separator />
+
+          {/* Gestione attrezzature */}
+          <TouchableOpacity
+            onPress={() => setShowEquipmentMgmt(!showEquipmentMgmt)}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <XStack gap="$2" alignItems="center">
+              <Ionicons name="settings-outline" size={18} color="#4A90D9" />
+              <SizableText size="$3" fontWeight="700" color="$active">
+                Gestione Attrezzature
+              </SizableText>
+            </XStack>
+            <Ionicons
+              name={showEquipmentMgmt ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color="#94a3b8"
+            />
+          </TouchableOpacity>
+
+          {showEquipmentMgmt && (
+            <YStack gap="$3">
+              <YStack gap="$2">
+                {equipment.map(e => (
+                  <XStack
+                    key={e.id}
+                    padding="$3"
+                    backgroundColor="$color1"
+                    borderRadius="$4"
+                    borderWidth={1}
+                    borderColor="$color4"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <YStack>
+                      <SizableText fontWeight="700">{e.name}</SizableText>
+                      <SizableText size="$1" color="$color10">
+                        Range: {e.minTemp}°C — {e.maxTemp}°C
+                      </SizableText>
+                    </YStack>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteEquipment(e.id, e.name)}
+                      style={{ padding: 6 }}
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                    </TouchableOpacity>
+                  </XStack>
+                ))}
+                {equipment.length === 0 && (
+                  <SizableText color="$color10" textAlign="center">Nessuna attrezzatura configurata</SizableText>
+                )}
+              </YStack>
+
+              <Card bordered padding="$4" backgroundColor="$color2" gap="$3">
+                <SizableText size="$3" fontWeight="700">Aggiungi Attrezzatura</SizableText>
+                <Input
+                  value={newEq.name}
+                  onChangeText={t => setNewEq({ ...newEq, name: t })}
+                  placeholder="Nome (es. Frigo 3, Abbattitore 2)"
+                />
+                <XStack gap="$2">
+                  <Input
+                    flex={1}
+                    keyboardType="numeric"
+                    value={newEq.min}
+                    onChangeText={t => setNewEq({ ...newEq, min: t })}
+                    placeholder="Min °C"
+                  />
+                  <Input
+                    flex={1}
+                    keyboardType="numeric"
+                    value={newEq.max}
+                    onChangeText={t => setNewEq({ ...newEq, max: t })}
+                    placeholder="Max °C"
+                  />
+                </XStack>
+                <Button
+                  theme="active"
+                  onPress={handleAddEquipment}
+                  disabled={createEquipment.isPending}
+                  icon={
+                    createEquipment.isPending ? (
+                      <Spinner color="white" />
+                    ) : (
+                      <Ionicons name="add-circle-outline" size={18} color="white" />
+                    )
+                  }
+                >
+                  Aggiungi
+                </Button>
+              </Card>
+            </YStack>
+          )}
+
+          <Separator />
+
+          {/* Storico */}
+          <TouchableOpacity
+            onPress={() => setShowHistory(!showHistory)}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <XStack gap="$2" alignItems="center">
+              <Ionicons name="time-outline" size={18} color="#94a3b8" />
+              <SizableText size="$3" fontWeight="600" color="$color11">
+                {showHistory ? 'Nascondi Storico' : 'Visualizza Storico Completo'}
+              </SizableText>
+            </XStack>
+            <Ionicons name={showHistory ? 'chevron-up' : 'chevron-down'} size={18} color="#94a3b8" />
+          </TouchableOpacity>
+
+          {showHistory && (
+            <YStack gap="$3">
+              <Input
+                value={search}
+                onChangeText={t => setSearch(t)}
+                placeholder="Filtra per attrezzatura o note..."
+                backgroundColor="$color1"
+              />
+
+              {historySliced.length === 0 ? (
+                <Card bordered padding="$4" alignItems="center" backgroundColor="$color2">
+                  <SizableText color="$color10">Nessuna rilevazione trovata</SizableText>
+                </Card>
+              ) : isWide ? (
+                <FlatList
+                  data={historySliced}
+                  keyExtractor={item => item.id}
+                  numColumns={2}
+                  scrollEnabled={false}
+                  columnWrapperStyle={{ gap: 8 }}
+                  renderItem={({ item }) => (
+                    <View style={{ flex: 1, marginVertical: 4 }}>
+                      <TemperatureLogCard log={item} compact />
+                    </View>
+                  )}
+                />
+              ) : (
+                <YStack gap="$2">
+                  {historySliced.map(log => (
+                    <TemperatureLogCard key={log.id} log={log} />
+                  ))}
+                </YStack>
+              )}
+            </YStack>
+          )}
+
+        </YStack>
+      </ScrollView>
+    </View>
   );
 }
 
-function TemperatureLogCard({ log }: { log: TemperatureLog }) {
+function TemperatureLogCard({ log, compact = false }: { log: TemperatureLog; compact?: boolean }) {
   return (
     <Card
       bordered
-      padding="$3"
+      padding={compact ? '$2' : '$3'}
       backgroundColor="$color1"
       borderColor={log.outOfRange ? '$red6' : log.autoFilled ? '$yellow6' : '$color4'}
+      flex={1}
     >
       <XStack justifyContent="space-between" alignItems="center">
-        <YStack gap="$1" flex={1}>
-          <XStack gap="$2" alignItems="center">
-            <SizableText fontWeight="700">{log.equipmentName}</SizableText>
+        <YStack gap="$1" flex={1} marginRight="$2">
+          <XStack gap="$2" alignItems="center" flexWrap="wrap">
+            <SizableText fontWeight="700" size={compact ? '$2' : '$3'} numberOfLines={1}>
+              {log.equipmentName}
+            </SizableText>
             {log.autoFilled && (
               <View style={{
                 backgroundColor: '#2a2010',
@@ -618,15 +676,20 @@ function TemperatureLogCard({ log }: { log: TemperatureLog }) {
               {formatDate(log.recordedAt, true)}
             </SizableText>
           </XStack>
-          {log.note && (
+          {!compact && log.note && (
             <SizableText size="$1" color="$color11" fontStyle="italic" marginTop="$1">
+              {log.note}
+            </SizableText>
+          )}
+          {compact && log.note && (
+            <SizableText size="$1" color="$color11" fontStyle="italic" numberOfLines={1}>
               {log.note}
             </SizableText>
           )}
         </YStack>
         <YStack alignItems="flex-end" gap="$1">
           <SizableText
-            size="$5"
+            size={compact ? '$4' : '$5'}
             fontWeight="800"
             color={log.outOfRange ? '$red10' : '$green10'}
           >
@@ -635,7 +698,9 @@ function TemperatureLogCard({ log }: { log: TemperatureLog }) {
           {log.outOfRange && (
             <XStack gap="$1" alignItems="center">
               <Ionicons name="alert-circle" size={12} color="#ef4444" />
-              <SizableText size="$1" color="$red10" fontWeight="700">FUORI RANGE</SizableText>
+              <SizableText size="$1" color="$red10" fontWeight="700">
+                {compact ? '⚠' : 'FUORI RANGE'}
+              </SizableText>
             </XStack>
           )}
         </YStack>
