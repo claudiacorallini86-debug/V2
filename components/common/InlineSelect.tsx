@@ -5,7 +5,7 @@ import {
   SizableText,
   Button,
 } from '@blinkdotnew/mobile-ui';
-import { FlatList, Modal, Pressable } from 'react-native';
+import { Modal, Pressable, ScrollView } from 'react-native';
 
 export type SelectItem = {
   label: string;
@@ -66,7 +66,7 @@ export const InlineSelect = ({
           <Pressable
             onPress={(event) => event.stopPropagation()}
             style={{
-              maxHeight: '70%',
+              maxHeight: 420,
               borderRadius: 16,
               backgroundColor: '#16213e',
               borderWidth: 1,
@@ -74,15 +74,29 @@ export const InlineSelect = ({
               overflow: 'hidden',
             }}
           >
-            <YStack padding="$4" gap="$3">
+            <YStack
+              style={{
+                paddingHorizontal: 16,
+                paddingTop: 16,
+                paddingBottom: 8,
+                borderBottomWidth: 1,
+                borderBottomColor: '#1e3a5f',
+              }}
+            >
               <SizableText fontWeight="700" size="$4">{placeholder}</SizableText>
-              <FlatList
-                data={items}
-                keyExtractor={(item) => item.value || item.label}
-                renderItem={({ item }) => {
+            </YStack>
+            <ScrollView
+              style={{ maxHeight: 300 }}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              keyboardShouldPersistTaps="handled"
+            >
+              <YStack padding="$3" gap="$2">
+                {items.map((item) => {
                   const isSelected = item.value === value;
                   return (
                     <Pressable
+                      key={item.value || item.label}
                       onPress={() => {
                         onValueChange(item.value);
                         setOpen(false);
@@ -91,7 +105,6 @@ export const InlineSelect = ({
                         paddingVertical: 14,
                         paddingHorizontal: 12,
                         borderRadius: 12,
-                        marginBottom: 8,
                         backgroundColor: isSelected ? '#4A90D933' : '#0f3460',
                         borderWidth: 1,
                         borderColor: isSelected ? '#4A90D9' : '#1e3a5f',
@@ -99,12 +112,14 @@ export const InlineSelect = ({
                     >
                       <XStack alignItems="center" justifyContent="space-between">
                         <SizableText color="$color12" flex={1}>{item.label}</SizableText>
-                        {isSelected ? <SizableText color="$active">Selezionato</SizableText> : null}
+                        {isSelected ? <SizableText color="$active">✓</SizableText> : null}
                       </XStack>
                     </Pressable>
                   );
-                }}
-              />
+                })}
+              </YStack>
+            </ScrollView>
+            <YStack style={{ padding: 12, borderTopWidth: 1, borderTopColor: '#1e3a5f' }}>
               <Button variant="outlined" onPress={() => setOpen(false)}>
                 Chiudi
               </Button>

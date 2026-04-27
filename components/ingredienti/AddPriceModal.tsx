@@ -93,8 +93,10 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
   }
 
   const handleSave = async () => {
-    if (!form.pricePerUnit || isNaN(parseFloat(form.pricePerUnit))) {
-      showToast('Errore', { message: 'Inserisci un prezzo valido.', variant: 'error' })
+    // Normalizza: sostituisce virgola con punto per supportare "3,25" e "3.25"
+    const normalizedPrice = form.pricePerUnit.trim().replace(',', '.')
+    if (!normalizedPrice || isNaN(parseFloat(normalizedPrice))) {
+      showToast('Errore', { message: 'Inserisci un prezzo valido (es. 3.25 o 3,25).', variant: 'error' })
       return
     }
 
@@ -115,7 +117,7 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
         ingredientId,
         date: form.date,
         supplier: form.supplier,
-        pricePerUnit: parseFloat(form.pricePerUnit),
+        pricePerUnit: parseFloat(normalizedPrice),
         priceUnit: form.priceUnit,
         docReferral: form.docReferral,
         invoiceUrl,
@@ -225,16 +227,20 @@ export function AddPriceModal({ ingredientId, defaultSupplier, isOpen, onClose }
                   </YStack>
                 </XStack>
 
-                {form.pricePerUnit && !isNaN(parseFloat(form.pricePerUnit)) && (form.priceUnit === 'kg' || form.priceUnit === 'L') && (
-                  <YStack backgroundColor="$color2" padding="$3" borderRadius="$4" borderWidth={1} borderColor="$color5">
-                    <SizableText size="$2" color="$color11">
-                      Anteprima conversione:
-                    </SizableText>
-                    <SizableText size="$3" fontWeight="700" color="$green10">
-                      {formatPricePreview(parseFloat(form.pricePerUnit))}/{form.priceUnit} = {formatPricePreview(parseFloat(form.pricePerUnit) / 1000)}/{form.priceUnit === 'kg' ? 'g' : 'mL'}
-                    </SizableText>
-                  </YStack>
-                )}
+                {(() => {
+                  const parsedPreview = parseFloat(form.pricePerUnit.replace(',', '.'))
+                  if (!form.pricePerUnit || isNaN(parsedPreview) || !(form.priceUnit === 'kg' || form.priceUnit === 'L')) return null
+                  return (
+                    <YStack backgroundColor="$color2" padding="$3" borderRadius="$4" borderWidth={1} borderColor="$color5">
+                      <SizableText size="$2" color="$color11">
+                        Anteprima conversione:
+                      </SizableText>
+                      <SizableText size="$3" fontWeight="700" color="$green10">
+                        {formatPricePreview(parsedPreview)}/{form.priceUnit} = {formatPricePreview(parsedPreview / 1000)}/{form.priceUnit === 'kg' ? 'g' : 'mL'}
+                      </SizableText>
+                    </YStack>
+                  )
+                })()}
 
                 <YStack gap="$2">
                   <SizableText size="$3" fontWeight="600">Riferimento Documento</SizableText>
