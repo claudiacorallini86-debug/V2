@@ -19,8 +19,8 @@ import {
   Alert,
   Platform,
   View,
+  Modal,
   TouchableOpacity,
-  FlatList,
   useWindowDimensions,
 } from 'react-native';
 import { formatDate } from '@/lib/date';
@@ -31,7 +31,7 @@ export function TemperatureTab() {
   const { equipment, temperatureLogs, addTemperatureLog, fillMissingDays, computeFillPreview, createEquipment, deleteEquipment, isLoading } = useHaccp();
   const { show } = useBlinkToast();
   const { user } = useAuth();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isWide = width >= 640;
 
   const showAlert = (title: string, message?: string) => {
@@ -207,26 +207,30 @@ export function TemperatureTab() {
         message="Operazione in corso..."
       />
 
-      {/* Dialog conferma compilazione giorni mancanti — FUORI dalla ScrollView */}
-      {fillPreview && (
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.65)',
-          zIndex: 999,
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20,
-        }}>
+      {/* Dialog conferma compilazione giorni mancanti */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={!!fillPreview}
+        onRequestClose={() => {
+          if (!isFillLoading) setFillPreview(null);
+        }}
+      >
+        {fillPreview && (
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.65)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}>
           <View style={{
             backgroundColor: '#1a2234',
             borderRadius: 16,
             padding: 22,
             width: '100%',
-            maxWidth: 460,
+            maxWidth: isWide ? 760 : 460,
+            maxHeight: Math.max(360, height * 0.82),
             borderWidth: 1,
             borderColor: '#2d3a50',
           }}>
@@ -249,48 +253,63 @@ export function TemperatureTab() {
               :
             </SizableText>
 
-            {/* Tabella riepilogo per attrezzatura */}
-            <YStack gap="$2" marginBottom="$4">
-              {fillPreview.map(item => (
-                <View
-                  key={item.equipmentName}
-                  style={{
-                    backgroundColor: '#0f1823',
-                    borderRadius: 10,
-                    padding: 10,
-                    borderWidth: 1,
-                    borderColor: '#2d3a50',
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <YStack gap={2} flex={1}>
-                    <SizableText size="$3" fontWeight="700" color="$color12">
-                      {item.equipmentName}
-                    </SizableText>
-                    <XStack gap="$1" alignItems="center">
-                      <Ionicons name="thermometer-outline" size={12} color="#94a3b8" />
-                      <SizableText size="$1" color="$color10">
-                        Ref: {item.refTemperature.toFixed(1)}°C
-                      </SizableText>
-                    </XStack>
-                  </YStack>
-                  <View style={{
-                    backgroundColor: '#1a3050',
-                    borderRadius: 8,
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderWidth: 1,
-                    borderColor: '#4A90D9',
-                  }}>
-                    <SizableText size="$2" fontWeight="700" color="#4A90D9">
-                      {item.filledCount} {item.filledCount === 1 ? 'giorno' : 'giorni'}
-                    </SizableText>
+            <ScrollView style={{ maxHeight: Math.max(140, height * 0.42) }} showsVerticalScrollIndicator>
+              {/* Tabella riepilogo per attrezzatura */}
+              <View style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                marginHorizontal: isWide ? -4 : 0,
+                marginBottom: 16,
+              }}>
+                {fillPreview.map(item => (
+                  <View
+                    key={item.equipmentName}
+                    style={{
+                      width: isWide ? '50%' : '100%',
+                      paddingHorizontal: isWide ? 4 : 0,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: '#0f1823',
+                        borderRadius: 10,
+                        padding: 10,
+                        borderWidth: 1,
+                        borderColor: '#2d3a50',
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <YStack gap={2} flex={1}>
+                        <SizableText size="$3" fontWeight="700" color="$color12">
+                          {item.equipmentName}
+                        </SizableText>
+                        <XStack gap="$1" alignItems="center">
+                          <Ionicons name="thermometer-outline" size={12} color="#94a3b8" />
+                          <SizableText size="$1" color="$color10">
+                            Ref: {item.refTemperature.toFixed(1)}°C
+                          </SizableText>
+                        </XStack>
+                      </YStack>
+                      <View style={{
+                        backgroundColor: '#1a3050',
+                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderWidth: 1,
+                        borderColor: '#4A90D9',
+                      }}>
+                        <SizableText size="$2" fontWeight="700" color="#4A90D9">
+                          {item.filledCount} {item.filledCount === 1 ? 'giorno' : 'giorni'}
+                        </SizableText>
+                      </View>
+                    </View>
                   </View>
-                </View>
-              ))}
-            </YStack>
+                ))}
+              </View>
+            </ScrollView>
 
             <SizableText size="$1" color="$color10" marginBottom="$4">
               I record auto-compilati saranno marcati con etichetta AUTO e non sovrascriveranno dati esistenti.
@@ -315,9 +334,10 @@ export function TemperatureTab() {
                 Conferma
               </Button>
             </XStack>
+            </View>
           </View>
-        </View>
-      )}
+        )}
+      </Modal>
 
       {/* ScrollView con flex:1 per non sfondare fuori schermo */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -465,18 +485,13 @@ export function TemperatureTab() {
                 <SizableText color="$color10">Nessuna rilevazione per oggi</SizableText>
               </Card>
             ) : isWide ? (
-              <FlatList
-                data={dailyLogs}
-                keyExtractor={item => item.id}
-                numColumns={2}
-                scrollEnabled={false}
-                columnWrapperStyle={{ gap: 8 }}
-                renderItem={({ item }) => (
-                  <View style={{ flex: 1, marginVertical: 4 }}>
-                    <TemperatureLogCard log={item} compact />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
+                {dailyLogs.map(log => (
+                  <View key={log.id} style={{ width: '50%', paddingHorizontal: 4, marginBottom: 8 }}>
+                    <TemperatureLogCard log={log} compact />
                   </View>
-                )}
-              />
+                ))}
+              </View>
             ) : (
               <YStack gap="$2">
                 {dailyLogs.map(log => (
@@ -610,18 +625,13 @@ export function TemperatureTab() {
                   <SizableText color="$color10">Nessuna rilevazione trovata</SizableText>
                 </Card>
               ) : isWide ? (
-                <FlatList
-                  data={historySliced}
-                  keyExtractor={item => item.id}
-                  numColumns={2}
-                  scrollEnabled={false}
-                  columnWrapperStyle={{ gap: 8 }}
-                  renderItem={({ item }) => (
-                    <View style={{ flex: 1, marginVertical: 4 }}>
-                      <TemperatureLogCard log={item} compact />
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
+                  {historySliced.map(log => (
+                    <View key={log.id} style={{ width: '50%', paddingHorizontal: 4, marginBottom: 8 }}>
+                      <TemperatureLogCard log={log} compact />
                     </View>
-                  )}
-                />
+                  ))}
+                </View>
               ) : (
                 <YStack gap="$2">
                   {historySliced.map(log => (
