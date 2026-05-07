@@ -13,6 +13,7 @@ import {
 } from '@blinkdotnew/mobile-ui';
 import { InlineSelect } from '@/components/common/InlineSelect';
 import { useHaccp, TemperatureLog, FillSummaryItem } from '@/hooks/useHaccp';
+import { useSettings } from '@/hooks/useSettings';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ScrollView,
@@ -31,8 +32,13 @@ export function TemperatureTab() {
   const { equipment, temperatureLogs, addTemperatureLog, fillMissingDays, computeFillPreview, createEquipment, deleteEquipment, isLoading } = useHaccp();
   const { show } = useBlinkToast();
   const { user } = useAuth();
+  const { settings } = useSettings();
   const { width, height } = useWindowDimensions();
   const isWide = width >= 640;
+
+  const isAdmin = user?.role === 'admin';
+  const autoFillEnabled = settings.haccp_auto_fill_enabled === '1';
+  const showAutoFillButton = isAdmin && autoFillEnabled;
 
   const showAlert = (title: string, message?: string) => {
     if (Platform.OS === 'web') {
@@ -373,7 +379,8 @@ export function TemperatureTab() {
             </YStack>
           )}
 
-          {/* Pulsante Compila Giorni Mancanti */}
+          {/* Pulsante Compila Giorni Mancanti — solo admin con flag attivo */}
+          {showAutoFillButton && (
           <TouchableOpacity
             onPress={handlePreviewFill}
             disabled={isPreviewLoading}
@@ -412,6 +419,7 @@ export function TemperatureTab() {
               </SizableText>
             </View>
           </TouchableOpacity>
+          )}
 
           {/* Form nuova rilevazione */}
           <Card bordered padding="$4" backgroundColor="$color1" gap="$4">
@@ -654,7 +662,7 @@ function TemperatureLogCard({ log, compact = false }: { log: TemperatureLog; com
       bordered
       padding={compact ? '$2' : '$3'}
       backgroundColor="$color1"
-      borderColor={log.outOfRange ? '$red6' : log.autoFilled ? '$yellow6' : '$color4'}
+      borderColor={log.outOfRange ? '$red6' : '$color4'}
       flex={1}
     >
       <XStack justifyContent="space-between" alignItems="center">
@@ -663,22 +671,7 @@ function TemperatureLogCard({ log, compact = false }: { log: TemperatureLog; com
             <SizableText fontWeight="700" size={compact ? '$2' : '$3'} numberOfLines={1}>
               {log.equipmentName}
             </SizableText>
-            {log.autoFilled && (
-              <View style={{
-                backgroundColor: '#2a2010',
-                borderRadius: 6,
-                paddingHorizontal: 6,
-                paddingVertical: 2,
-                borderWidth: 1,
-                borderColor: '#92400e',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 3,
-              }}>
-                <Ionicons name="flash-outline" size={10} color="#f59e0b" />
-                <SizableText size="$1" color="#f59e0b" fontWeight="700">AUTO</SizableText>
-              </View>
-            )}
+
           </XStack>
           <XStack gap="$2" alignItems="center">
             <Ionicons name="calendar-outline" size={12} color="#94a3b8" />

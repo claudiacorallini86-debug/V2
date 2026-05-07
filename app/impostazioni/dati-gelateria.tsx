@@ -11,12 +11,14 @@ import {
   useBlinkToast,
   Card,
   Spinner,
+  Switch,
 } from '@blinkdotnew/mobile-ui';
 import { AppHeader } from '@/components/AppHeader';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Alert, View } from 'react-native';
 import { useSettings } from '@/hooks/useSettings';
+import { useAuth } from '@/context/AuthContext';
 
 import { LoadingOverlay } from '../../components/LoadingOverlay';
 
@@ -24,6 +26,8 @@ export default function DatiGelateriaScreen() {
   const router = useRouter();
   const { settings, isLoading, updateSettings } = useSettings();
   const { show } = useBlinkToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const [form, setForm] = useState({
     store_name: '',
@@ -32,6 +36,8 @@ export default function DatiGelateriaScreen() {
     store_phone: '',
     store_email: '',
   });
+
+  const [haccpAutoFill, setHaccpAutoFill] = useState(false);
 
   useEffect(() => {
     if (Object.keys(settings).length > 0) {
@@ -42,6 +48,7 @@ export default function DatiGelateriaScreen() {
         store_phone: settings.store_phone || '',
         store_email: settings.store_email || '',
       });
+      setHaccpAutoFill(settings.haccp_auto_fill_enabled === '1');
     }
   }, [settings]);
 
@@ -52,7 +59,10 @@ export default function DatiGelateriaScreen() {
     }
 
     try {
-      await updateSettings.mutateAsync(form);
+      await updateSettings.mutateAsync({
+        ...form,
+        haccp_auto_fill_enabled: haccpAutoFill ? '1' : '0',
+      });
       show('Dati gelateria aggiornati correttamente.', { variant: 'success' });
       router.back();
     } catch (error: any) {
@@ -142,6 +152,38 @@ export default function DatiGelateriaScreen() {
               </YStack>
             </XStack>
           </Card>
+
+          {/* Sezione HACCP — solo admin */}
+          {isAdmin && (
+            <>
+              <YStack gap="$2" marginTop="$2">
+                <SizableText size="$3" color="$color10" fontWeight="700" textTransform="uppercase" letterSpacing={1}>
+                  HACCP AVANZATO
+                </SizableText>
+                <SizableText size="$2" color="$color11">
+                  Funzionalità riservate agli amministratori.
+                </SizableText>
+              </YStack>
+
+              <Card bordered padding="$4" backgroundColor="$color1" gap="$4">
+                <XStack justifyContent="space-between" alignItems="center">
+                  <YStack flex={1} gap="$1" marginRight="$4">
+                    <XStack gap="$2" alignItems="center">
+                      <Ionicons name="calendar-outline" size={16} color="#4A90D9" />
+                      <SizableText size="$3" fontWeight="700">Compila Giorni Mancanti</SizableText>
+                    </XStack>
+                    <SizableText size="$2" color="$color11">
+                      Abilita il pulsante per la compilazione automatica delle temperature nei giorni senza registrazioni. Visibile solo agli admin.
+                    </SizableText>
+                  </YStack>
+                  <Switch
+                    checked={haccpAutoFill}
+                    onCheckedChange={setHaccpAutoFill}
+                  />
+                </XStack>
+              </Card>
+            </>
+          )}
         </YStack>
       </ScrollView>
       <LoadingOverlay visible={updateSettings.isPending} />
