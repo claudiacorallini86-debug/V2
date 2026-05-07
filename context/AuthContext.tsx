@@ -24,32 +24,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = blink.auth.onAuthStateChanged((state) => {
-      if (state.user) {
-        setUser({
-          id: state.user.id,
-          email: state.user.email,
-          displayName: state.user.displayName || null,
-          role: (state.user.role as 'admin' | 'staff') || 'staff',
-          active: 1, // Assume active if authenticated through Blink
-        })
-      } else {
-        setUser(null)
-      }
-      if (!state.isLoading) {
+    // Carica l'utente Amelie (con role corretto) da AsyncStorage al boot
+    const loadStoredUser = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(AUTH_KEY)
+        if (stored) {
+          const parsed = JSON.parse(stored) as AmelieUser
+          setUser(parsed)
+        }
+      } catch (e) {
+        console.warn('AuthContext: failed to load stored user', e)
+      } finally {
         setIsLoading(false)
       }
-    })
-
-    return unsubscribe
+    }
+    loadStoredUser()
   }, [])
 
   const signIn = async (u: AmelieUser) => {
+    // Salva l'utente Amelie (con role dal DB custom) in AsyncStorage
+    await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(u))
     setUser(u)
   }
 
   const signOut = async () => {
-    await blink.auth.signOut()
+    await AsyncStorage.removeItem(AUTH_KEY)
     setUser(null)
   }
 
