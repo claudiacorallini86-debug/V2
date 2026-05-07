@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   YStack,
   XStack,
@@ -11,6 +11,7 @@ import { CleaningTab } from '@/components/haccp/CleaningTab';
 import { NonConformityTab } from '@/components/haccp/NonConformityTab';
 import { Ionicons } from '@expo/vector-icons';
 import { Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useHaccp } from '@/hooks/useHaccp';
 import { useSettings } from '@/hooks/useSettings';
@@ -20,7 +21,15 @@ export default function HaccpScreen() {
   const [activeTab, setActiveTab] = useState('temp');
   const { user } = useAuth();
   const { temperatureLogs, checklists, nonConformities, isLoading } = useHaccp();
-  const { settings } = useSettings();
+  const { settings, refetch: refetchSettings } = useSettings();
+
+  // Ogni volta che questa schermata torna in focus (es. dopo aver modificato le impostazioni)
+  // ricarica i settings freschi dal DB così il bottone auto-fill si aggiorna subito
+  useFocusEffect(
+    useCallback(() => {
+      refetchSettings();
+    }, [refetchSettings])
+  );
 
   const exportMonthlyPDF = async () => {
     const now = new Date();
