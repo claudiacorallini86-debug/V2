@@ -4,7 +4,7 @@ import { blink } from '../lib/blink';
 export function useSettings() {
   const queryClient = useQueryClient();
 
-  const { data: settings = {}, isLoading, refetch } = useQuery({
+  const { data: settings = {}, isLoading } = useQuery({
     queryKey: ['amelie-settings'],
     queryFn: async () => {
       const list = await (blink.db as any).amelieSettings.list() as any[];
@@ -13,10 +13,7 @@ export function useSettings() {
         map[item.key] = item.value;
       });
       return map;
-    },
-    staleTime: 0,           // considera sempre stale: ricarica al montaggio
-    refetchOnMount: 'always', // ricarica ogni volta che il componente monta (anche rientro)
-    refetchOnWindowFocus: true, // ricarica quando l'utente torna sulla finestra
+    }
   });
 
   const updateSettings = useMutation({
@@ -31,5 +28,5 @@ export function useSettings() {
     }
   });
 
-  return { settings, isLoading, updateSettings, refetch };
+  return { settings, isLoading, updateSettings };
 }

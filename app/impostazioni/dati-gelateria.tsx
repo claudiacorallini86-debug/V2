@@ -38,19 +38,18 @@ export default function DatiGelateriaScreen() {
 
   const [haccpAutoFill, setHaccpAutoFill] = useState(false);
 
-  // Sincronizza il form ogni volta che i settings arrivano/cambiano dal DB
-  // Non usare condizione Object.keys perché la chiave potrebbe non esistere ancora
   useEffect(() => {
-    if (isLoading) return; // aspetta che il fetch sia completato
-    setForm({
-      store_name: settings.store_name || '',
-      store_address: settings.store_address || '',
-      store_vat: settings.store_vat || '',
-      store_phone: settings.store_phone || '',
-      store_email: settings.store_email || '',
-    });
-    setHaccpAutoFill(settings.haccp_auto_fill_enabled === '1');
-  }, [isLoading, settings]);
+    if (Object.keys(settings).length > 0) {
+      setForm({
+        store_name: settings.store_name || '',
+        store_address: settings.store_address || '',
+        store_vat: settings.store_vat || '',
+        store_phone: settings.store_phone || '',
+        store_email: settings.store_email || '',
+      });
+      setHaccpAutoFill(settings.haccp_auto_fill_enabled === '1');
+    }
+  }, [settings]);
 
   const handleSave = async () => {
     if (!form.store_name.trim()) {
