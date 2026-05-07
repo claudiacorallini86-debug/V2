@@ -11,12 +11,11 @@ import {
   useBlinkToast,
   Card,
   Spinner,
-  Switch,
 } from '@blinkdotnew/mobile-ui';
 import { AppHeader } from '@/components/AppHeader';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, View } from 'react-native';
+import { Alert, Switch as RNSwitch, View } from 'react-native';
 import { useSettings } from '@/hooks/useSettings';
 import { useAuth } from '@/context/AuthContext';
 
@@ -176,9 +175,12 @@ export default function DatiGelateriaScreen() {
                       Abilita il pulsante per la compilazione automatica delle temperature nei giorni senza registrazioni. Visibile solo agli admin.
                     </SizableText>
                   </YStack>
-                  <Switch
-                    checked={haccpAutoFill}
-                    onCheckedChange={setHaccpAutoFill}
+                  <RNSwitch
+                    value={haccpAutoFill}
+                    onValueChange={setHaccpAutoFill}
+                    trackColor={{ false: '#374151', true: '#4A90D9' }}
+                    thumbColor={haccpAutoFill ? '#ffffff' : '#9ca3af'}
+                    ios_backgroundColor="#374151"
                   />
                 </XStack>
               </Card>
